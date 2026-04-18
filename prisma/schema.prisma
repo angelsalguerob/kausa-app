@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")  // Usa puerto 6543 (Pooler)
+  directUrl = env("DIRECT_URL")    // <--- ¡AGREGA ESTO! Usa puerto 5432 (Directo)
+}
+
+// Tus modelos (NO los cambies, siguen igual)
+model Product {
+  id        Int      @id @default(autoincrement())
+  name      String
+  price     Float
+  category  String
+  image     String
+  createdAt DateTime @default(now())
+}
+
+model Order {
+  id            Int      @id @default(autoincrement())
+  dailyTicket   Int      @default(1)
+  table         String   @default("Caja")
+  total         Float
+  description   String   @default("Varios")
+  
+  // --- ESTADOS SEPARADOS ---
+  status        String   @default("Pendiente") // Cocina: Pendiente, Listo, Entregado
+  paymentStatus String   @default("Pendiente") // Finanzas: Pendiente, Pagado, Fiado
+  
+  createdAt     DateTime @default(now())
+}
+
+// Tabla para guardar el menú que se configuró cada día
+model DailyMenu {
+  id        Int      @id @default(autoincrement())
+  date      String   @unique // Guardaremos la fecha tipo "2026-04-14" para buscar el de hoy
+  data      Json     // Aquí guardaremos todo el objeto con el clásico y el ejecutivo
+  updatedAt DateTime @updatedAt
+}
+
+model Table {
+  id      String @id
+  name    String
+  type    String
+  icon    String
+  pos_x   Float  @default(0)
+  pos_y   Float  @default(0)
+
+  @@map("tables") // Esto asegura que en Supabase la tabla se llame "tables" en minúsculas
+}
