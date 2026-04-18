@@ -6,12 +6,22 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
 
   try {
-    // 1. Calculamos el rango de HOY
-    const today = new Date()
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0)
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59)
+    // 🚀 BUG FIX HORARIO LIMA (UTC-5)
+    const now = new Date()
+    // Restamos 5 horas para sincronizar con la hora exacta de Perú
+    const peruTime = new Date(now.getTime() - (5 * 60 * 60 * 1000))
+    
+    // Extraemos el día real en Perú
+    const yyyy = peruTime.getUTCFullYear()
+    const mm = String(peruTime.getUTCMonth() + 1).padStart(2, '0')
+    const dd = String(peruTime.getUTCDate()).padStart(2, '0')
+    const peruDateString = `${yyyy}-${mm}-${dd}`
 
-    // 2. Contamos cuántas ventas ya hay creadas el día de hoy
+    // 1. Calculamos el rango de HOY forzando la zona horaria peruana
+    const startOfDay = new Date(`${peruDateString}T00:00:00-05:00`)
+    const endOfDay = new Date(`${peruDateString}T23:59:59-05:00`)
+
+    // 2. Contamos cuántas ventas ya hay creadas el día de hoy (en Perú)
     const todayOrdersCount = await prisma.order.count({
       where: {
         createdAt: {
@@ -30,7 +40,7 @@ export default defineEventHandler(async (event) => {
         total: parseFloat(body.total),
         status: 'Pendiente', // Para que la cocina lo vea
         description: body.description || "ERROR: NO LLEGÓ",
-        dailyTicket: nextTicket, // <--- Guardamos el correlativo diario
+        dailyTicket: nextTicket, // <--- Guardamos el correlativo diario corregido
         table: body.table || 'Caja'
       }
     })
