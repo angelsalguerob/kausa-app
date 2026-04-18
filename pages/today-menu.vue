@@ -1,5 +1,6 @@
+//pages/today-menu.vue
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
 // --- 1. BASE DE DATOS LOCAL PARA LA PANTALLA ---
 const menus = ref({
@@ -37,35 +38,7 @@ const newItems = ref({
   ejecutivo: { entradas: '', segundos: '', bebidas: '', postres: '' }
 })
 
-// 🚀 --- PULL TO REFRESH (LÓGICA TÁCTIL) ---
-const touchStartY = ref(0)
-const touchCurrentY = ref(0)
-const isPulling = ref(false)
-const pullDistance = computed(() => Math.max(0, touchCurrentY.value - touchStartY.value))
-const showRefreshSpinner = computed(() => pullDistance.value > 60)
-
-function handleTouchStart(e) {
-  if (window.scrollY === 0) {
-    touchStartY.value = e.touches[0].clientY
-    isPulling.value = true
-  }
-}
-
-function handleTouchMove(e) {
-  if (!isPulling.value) return
-  touchCurrentY.value = e.touches[0].clientY
-  if (pullDistance.value > 0) e.preventDefault()
-}
-
-async function handleTouchEnd() {
-  if (!isPulling.value) return
-  if (pullDistance.value > 80) {
-    await loadTodayMenu()
-  }
-  isPulling.value = false
-  touchStartY.value = 0
-  touchCurrentY.value = 0
-}
+// 🧹 (SE ELIMINARON TODAS LAS VARIABLES Y EVENTOS DEL PULL TO REFRESH MANUAL)
 
 async function loadTodayMenu() {
   try {
@@ -83,17 +56,7 @@ async function loadTodayMenu() {
 }
 
 onMounted(() => {
-  document.addEventListener('touchstart', handleTouchStart, { passive: true })
-  document.addEventListener('touchmove', handleTouchMove, { passive: false })
-  document.addEventListener('touchend', handleTouchEnd)
-  
   loadTodayMenu()
-})
-
-onUnmounted(() => {
-  document.removeEventListener('touchstart', handleTouchStart)
-  document.removeEventListener('touchmove', handleTouchMove)
-  document.removeEventListener('touchend', handleTouchEnd)
 })
 
 function addItem(menuKey, categoryKey) {
@@ -184,17 +147,7 @@ async function confirmPublish() {
 
 <template>
   <div class="min-h-[calc(100vh-80px)] bg-gray-50 p-4 md:p-8 relative">
-    
-    <div 
-      class="absolute top-2 left-1/2 -translate-x-1/2 flex justify-center items-center pointer-events-none transition-transform z-[100]"
-      :style="`transform: translateY(${Math.min(pullDistance - 50, 20)}px); opacity: ${pullDistance > 20 ? 1 : 0};`"
-    >
-      <div class="bg-white rounded-full p-2 shadow-md border border-gray-100 flex items-center justify-center" :class="showRefreshSpinner ? 'animate-spin' : ''">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
-      </div>
-    </div>
-
-    <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4">
+      <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4">
       <div>
         <h1 class="text-2xl md:text-3xl font-black text-slate-800 flex items-center gap-3">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-7 h-7 md:w-8 md:h-8 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>

@@ -81,7 +81,7 @@ function calcularMetricas() {
     const status = order.paymentStatus === 'Pagado' ? 'Efectivo' : order.paymentStatus
 
     if (status === 'Efectivo') {
-      efectivo += monto // 🚀 AQUÍ ESTABA EL ERROR: ahora tiene una sola 'c'
+      efectivo += monto
     } else if (status === 'Yape / Plin' || status === 'Tarjeta') {
       digital += monto
     } else {
