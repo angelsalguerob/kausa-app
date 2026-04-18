@@ -1,4 +1,3 @@
-// server/api/orders/by-date.ts
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
@@ -10,16 +9,17 @@ export default defineEventHandler(async (event) => {
   if (!targetDate) return []
 
   try {
-    // 1. Creamos los límites exactos del día usando el huso horario local
-    const startOfDay = new Date(`${targetDate}T00:00:00`)
-    const endOfDay = new Date(`${targetDate}T23:59:59`)
+    //  BUG FIX HORARIO: Le agregamos "-05:00" para forzar la hora exacta de Lima/Perú
+    // Así Vercel no usará la hora de Londres para los cortes de caja.
+    const startOfDay = new Date(`${targetDate}T00:00:00-05:00`)
+    const endOfDay = new Date(`${targetDate}T23:59:59-05:00`)
 
-    // 2. Buscamos usando PRISMA (apuntando a tu modelo 'Order' y campo 'createdAt')
+    // Buscamos usando PRISMA
     const orders = await prisma.order.findMany({
       where: {
         createdAt: {
-          gte: startOfDay, // Mayor o igual a las 00:00
-          lte: endOfDay,   // Menor o igual a las 23:59
+          gte: startOfDay, // Mayor o igual a las 00:00 de Perú
+          lte: endOfDay,   // Menor o igual a las 23:59 de Perú
         },
       },
       orderBy: {
