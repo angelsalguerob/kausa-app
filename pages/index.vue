@@ -493,7 +493,7 @@ function iniciarAnalisis() {
                   class="flex items-center gap-2 text-xs md:text-sm font-black text-slate-600 hover:text-slate-900 transition bg-slate-100 hover:bg-slate-200 px-3 md:px-4 py-2 rounded-xl border border-slate-300 shadow-sm"
                   title="Editar Meta"
                 >
-                  Meta: S/. {{ store.dailyGoal.toFixed(0) }}
+                  Meta: S/. {{ store.dailyGoal.toFixed(2) }}
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 md:w-4 md:h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" /></svg>
                 </button>
               </div>
@@ -536,7 +536,7 @@ function iniciarAnalisis() {
             </div>
             <div class="text-right bg-white/10 px-3 md:px-4 py-2 rounded-lg border border-white/20">
               <span class="block text-[9px] md:text-[10px] font-black uppercase tracking-widest text-emerald-100 mb-0.5">Superávit</span>
-              <span class="text-lg md:text-2xl font-black">+ S/. {{ surplusAmount.toFixed(0) }}</span>
+              <span class="text-lg md:text-2xl font-black">+ S/. {{ surplusAmount.toFixed(2) }}</span>
             </div>
           </div>
         </div>
@@ -552,7 +552,7 @@ function iniciarAnalisis() {
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 md:w-5 md:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
                 </div>
               </div>
-              <p class="text-3xl md:text-4xl font-black text-slate-800">S/. {{ (store.stats?.totalPagado || 0).toFixed(0) }}</p>
+              <p class="text-3xl md:text-4xl font-black text-slate-800">S/. {{ (store.stats?.totalPagado || 0).toFixed(2) }}</p>
             </div>
           </div>
 
@@ -578,7 +578,7 @@ function iniciarAnalisis() {
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 md:w-5 md:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
                 </div>
               </div>
-              <p class="text-3xl md:text-4xl font-black text-slate-800">S/. {{ (store.stats?.totalPorCobrar || 0).toFixed(0) }}</p>
+              <p class="text-3xl md:text-4xl font-black text-slate-800">S/. {{ (store.stats?.totalPorCobrar || 0).toFixed(2) }}</p>
             </div>
           </div>
 
