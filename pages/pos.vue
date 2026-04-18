@@ -110,12 +110,25 @@ function toggleSelection(category, value) {
 }
 
 // 🚀 3. El nuevo comportamiento al abrir el Menú
+const cartPulse = ref(false)
+
+function triggerCartAnimation() {
+  // Un pequeño truco para reiniciar la animación si toca varios platos muy rápido
+  cartPulse.value = false
+  setTimeout(() => {
+    cartPulse.value = true
+    setTimeout(() => {
+      cartPulse.value = false
+    }, 400) // Dura exactamente 400ms, igual que el CSS
+  }, 10)
+}
+
+
 function handleProductClick(product) {
   if (product.type === 'combo') {
     activeCombo.value = product
     const agotados = product.options?.agotados || []
     
-    // Asigna automáticamente el primer plato que haya "sobrevivido" al Sold Out
     comboSelections.value = {
       entrada: getFirstAvailable(product.options?.entradas, agotados),
       segundo: getFirstAvailable(product.options?.segundos, agotados),
@@ -126,17 +139,17 @@ function handleProductClick(product) {
   } else {
     store.addToCart(product)
     activeTab.value = 'cart' 
+    triggerCartAnimation() // Disparamos la animación
   }
 }
 
 function addComboToCart() {
-  // 🚀 MAGIA AQUÍ: Si está vacío, escribimos explícitamente "Sin..."
   const selecciones = [
     comboSelections.value.entrada || 'Sin entrada',
     comboSelections.value.segundo || 'Sin segundo',
     comboSelections.value.bebida || 'Sin bebida',
     comboSelections.value.postre || 'Sin postre'
-  ].join(', ') // Quitamos el filter(Boolean) para que pasen todos
+  ].join(', ') 
 
   const finalName = `${activeCombo.value.name} [${selecciones}]`
   const uniqueId = `combo-${Date.now()}`
@@ -148,6 +161,7 @@ function addComboToCart() {
   })
   showComboModal.value = false
   activeTab.value = 'cart' 
+  triggerCartAnimation() //Disparamos la animación
 }
 
 let syncInterval = null
@@ -359,74 +373,87 @@ function confirmCancelPos() {
       </div>
 
       <div v-if="activeTab === 'cart'" class="flex-1 flex flex-col overflow-hidden bg-white">
-        <div class="flex-1 overflow-y-auto p-4 space-y-3">
-          <div v-if="store.cart.length === 0" class="flex flex-col items-center justify-center h-full text-slate-400 opacity-60">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="w-20 h-20 mb-4 text-slate-300"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
-            <p class="font-medium text-lg">El carrito esta vacio</p>
-          </div>
+  <div class="flex-1 overflow-y-auto p-4 space-y-3">
+    <div v-if="store.cart.length === 0" class="flex flex-col items-center justify-center h-full text-slate-400 opacity-60">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="w-20 h-20 mb-4 text-slate-300"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
+      <p class="font-medium text-lg">El carrito está vacío</p>
+    </div>
 
-          <div v-for="item in store.cart" :key="item.id" class="flex justify-between items-center group bg-white p-3 rounded-xl border border-gray-100 shadow-sm hover:border-orange-200 transition">
-            <div class="flex items-center gap-3">
-               <img :src="item.image || 'https://placehold.co/100?text=?'" class="w-12 h-12 rounded-lg object-cover bg-gray-100 border border-gray-200">
-              <div class="max-w-[120px] sm:max-w-[160px]">
-                <p class="text-sm font-bold text-slate-800 line-clamp-2 leading-tight" :title="item.name">{{ item.name }}</p>
-                <p class="text-xs text-slate-500 font-mono mt-0.5">S/. {{ item.price }} x {{ item.quantity }}</p>
-              </div>
-            </div>
-            
-            <div class="flex items-center gap-2 bg-gray-100 rounded-lg p-1 shrink-0">
-               <button @click.stop="store.decreaseQuantity(item.id)" class="w-7 h-7 rounded-md bg-white text-slate-600 shadow-sm hover:text-red-500 hover:bg-red-50 transition font-bold">-</button>
-               <span class="text-slate-800 font-bold w-4 text-center text-sm">{{ item.quantity }}</span>
-               <button @click.stop="store.addToCart(item)" class="w-7 h-7 rounded-md bg-white text-slate-600 shadow-sm hover:text-emerald-500 hover:bg-emerald-50 transition font-bold">+</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="p-6 bg-gray-50 border-t border-gray-200">
-          <div class="flex justify-between mb-2 text-sm text-slate-500 font-medium">
-            <span>Subtotal</span><span>S/. {{ store.totalPrice.toFixed(2) }}</span>
-          </div>
-          <div class="flex justify-between mb-4 text-2xl font-bold text-slate-800">
-            <span>Total</span><span class="text-emerald-600">S/. {{ store.totalPrice.toFixed(2) }}</span>
-          </div>
-
-          <div class="mb-3">
-            <button v-if="!isTakeawayActive" @click="openTakeawayModal" class="w-full bg-slate-800 hover:bg-slate-900 text-white px-4 py-3 rounded-xl font-bold transition-colors text-sm shadow-sm">
-              Nuevo Pedido: Para Llevar
-            </button>
-            <div v-else class="bg-blue-50 border border-blue-200 p-3 rounded-xl flex items-center justify-between shadow-sm">
-              <div>
-                <span class="text-blue-600 font-bold block text-[10px] uppercase tracking-wider">Modo Activo</span>
-                <span class="text-slate-800 font-bold text-sm">Llevar: {{ takeawayCustomer }}</span>
-              </div>
-              <button @click="cancelTakeaway" class="text-slate-500 hover:text-red-600 font-bold px-3 py-1.5 border border-slate-200 hover:border-red-200 bg-white rounded-lg transition-colors text-xs">
-                Cancelar
-              </button>
-            </div>
-          </div>
-          
-          <div v-if="!isTakeawayActive" class="mb-4 bg-white p-2.5 rounded-xl border-2 transition-all duration-300" :class="!mesaSeleccionada && store.cart.length > 0 ? 'border-red-300 shadow-md shadow-red-500/10' : 'border-gray-200 shadow-sm'">
-            <label class="block text-[10px] font-black uppercase tracking-widest mb-2 px-1" :class="!mesaSeleccionada && store.cart.length > 0 ? 'text-red-500' : 'text-slate-400'">
-              {{ !mesaSeleccionada ? '[!] Obligatorio: Asignar a destino' : 'Destino de la Orden:' }}
-            </label>
-            <button @click="showTableModal = true" class="w-full bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-800 p-2.5 rounded-lg flex items-center justify-between transition-colors group">
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded bg-slate-200 group-hover:bg-emerald-200 text-slate-600 group-hover:text-emerald-700 flex items-center justify-center font-black text-xs transition-colors">{{ mesaSeleccionada ? mesaSeleccionada.icon : '?' }}</div>
-                <span class="font-bold text-sm" :class="!mesaSeleccionada && store.cart.length > 0 ? 'text-red-500 animate-pulse' : ''">{{ mesaSeleccionada ? mesaSeleccionada.name : 'Seleccionar Mesa' }}</span>
-              </div>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
-            </button>
-          </div>
-          
-          <div class="grid grid-cols-2 gap-3 mt-4">
-             <button @click="handleCancelCart" class="bg-white border border-gray-300 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-600 font-bold py-3 rounded-xl transition shadow-sm">
-               <span class="lg:hidden">{{ store.cart.length === 0 ? 'Cerrar Panel' : 'Cancelar Pedido' }}</span>
-               <span class="hidden lg:inline">Cancelar</span>
-             </button>
-             <button @click="handleCheckout()" :disabled="!canCheckout" class="font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2" :class="canCheckout ? 'bg-emerald-500 hover:bg-emerald-600 text-white active:scale-95 shadow-emerald-500/30' : 'bg-gray-300 text-gray-400 cursor-not-allowed shadow-none'">Enviar</button>
-          </div>
+    <div v-for="item in store.cart" :key="item.id" class="flex justify-between items-center group bg-white p-3 rounded-xl border border-gray-100 shadow-sm hover:border-orange-200 transition">
+      <div class="flex items-center gap-3">
+        <img :src="item.image || 'https://placehold.co/100?text=?'" class="w-12 h-12 rounded-lg object-cover bg-gray-100 border border-gray-200">
+        <div class="max-w-[120px] sm:max-w-[160px]">
+          <p class="text-sm font-bold text-slate-800 line-clamp-2 leading-tight" :title="item.name">{{ item.name }}</p>
+          <p class="text-xs text-slate-500 font-mono mt-0.5">S/. {{ item.price }} x {{ item.quantity }}</p>
         </div>
       </div>
+      
+      <div class="flex items-center gap-2 bg-gray-100 rounded-lg p-1 shrink-0">
+         <button @click.stop="store.decreaseQuantity(item.id); triggerCartAnimation()" class="w-7 h-7 rounded-md bg-white text-slate-600 shadow-sm hover:text-red-500 hover:bg-red-50 transition font-bold">-</button>
+         <span class="text-slate-800 font-bold w-4 text-center text-sm">{{ item.quantity }}</span>
+         <button @click.stop="store.addToCart(item); triggerCartAnimation()" class="w-7 h-7 rounded-md bg-white text-slate-600 shadow-sm hover:text-emerald-500 hover:bg-emerald-50 transition font-bold">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="p-6 bg-gray-50 border-t border-gray-200">
+    <div class="flex justify-between mb-2 text-sm text-slate-500 font-medium">
+      <span>Subtotal</span><span>S/. {{ store.totalPrice.toFixed(2) }}</span>
+    </div>
+    <div class="flex justify-between mb-4 text-2xl font-bold text-slate-800">
+      <span>Total</span>
+      <span class="text-emerald-600 transition-all duration-300" :class="{ 'text-flash': cartPulse }">
+        S/. {{ store.totalPrice.toFixed(2) }}
+      </span>
+    </div>
+
+    <div class="mb-3">
+      <button v-if="!isTakeawayActive" @click="openTakeawayModal" class="w-full bg-slate-800 hover:bg-slate-900 text-white px-4 py-3 rounded-xl font-bold transition-colors text-sm shadow-sm">
+        Nuevo Pedido: Para Llevar
+      </button>
+      <div v-else class="bg-blue-50 border border-blue-200 p-3 rounded-xl flex items-center justify-between shadow-sm">
+        <div>
+          <span class="text-blue-600 font-bold block text-[10px] uppercase tracking-wider">Modo Activo</span>
+          <span class="text-slate-800 font-bold text-sm">Llevar: {{ takeawayCustomer }}</span>
+        </div>
+        <button @click="cancelTakeaway" class="text-slate-500 hover:text-red-600 font-bold px-3 py-1.5 border border-slate-200 hover:border-red-200 bg-white rounded-lg transition-colors text-xs">
+          Cancelar
+        </button>
+      </div>
+    </div>
+    
+    <div v-if="!isTakeawayActive" class="mb-4 bg-white p-2.5 rounded-xl border-2 transition-all duration-300" :class="!mesaSeleccionada && store.cart.length > 0 ? 'border-red-300 shadow-md shadow-red-500/10' : 'border-gray-200 shadow-sm'">
+      <label class="block text-[10px] font-black uppercase tracking-widest mb-2 px-1" :class="!mesaSeleccionada && store.cart.length > 0 ? 'text-red-500' : 'text-slate-400'">
+        {{ !mesaSeleccionada ? '[!] Obligatorio: Asignar a destino' : 'Destino de la Orden:' }}
+      </label>
+      <button @click="showTableModal = true" class="w-full bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-800 p-2.5 rounded-lg flex items-center justify-between transition-colors group">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded bg-slate-200 group-hover:bg-emerald-200 text-slate-600 group-hover:text-emerald-700 flex items-center justify-center font-black text-xs transition-colors">{{ mesaSeleccionada ? mesaSeleccionada.icon : '?' }}</div>
+          <span class="font-bold text-sm" :class="!mesaSeleccionada && store.cart.length > 0 ? 'text-red-500 animate-pulse' : ''">{{ mesaSeleccionada ? mesaSeleccionada.name : 'Seleccionar Mesa' }}</span>
+        </div>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+      </button>
+    </div>
+    
+    <div class="grid grid-cols-2 gap-3 mt-4">
+       <button @click="handleCancelCart" class="bg-white border border-gray-300 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-600 font-bold py-3 rounded-xl transition shadow-sm">
+         <span class="lg:hidden">{{ store.cart.length === 0 ? 'Cerrar Panel' : 'Cancelar Pedido' }}</span>
+         <span class="hidden lg:inline">Cancelar</span>
+       </button>
+       <button 
+         @click="handleCheckout()" 
+         :disabled="!canCheckout" 
+         class="font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2" 
+         :class="[
+           canCheckout ? 'bg-emerald-500 hover:bg-emerald-600 text-white active:scale-95 shadow-emerald-500/30' : 'bg-gray-300 text-gray-400 cursor-not-allowed shadow-none',
+           { 'cart-bump-desktop': cartPulse && canCheckout }
+         ]"
+       >
+         Enviar
+       </button>
+    </div>
+  </div>
+</div>
 
       <div v-if="activeTab === 'sent'" class="flex-1 flex flex-col bg-slate-50 overflow-hidden">
         
@@ -474,18 +501,25 @@ function confirmCancelPos() {
     </div>
 
     <button 
-      @click="showMobileCart = true"
-      class="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-slate-900 text-white px-6 py-4 rounded-full shadow-[0_15px_40px_rgba(0,0,0,0.4)] flex justify-between items-center font-bold active:scale-95 transition-all w-[90%] max-w-[400px]"
-    >
-      <div class="flex items-center gap-3">
-        <div class="bg-orange-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs shadow-inner">
-          {{ store.cart.length > 0 ? store.cart.length : activeOrders.length }}
-        </div>
-        <span class="text-sm uppercase tracking-wider">Cuenta / Enviados</span>
-      </div>
-      <div class="h-6 w-px bg-slate-700 mx-2"></div>
-      <span class="text-emerald-400 text-lg">S/. {{ store.totalPrice.toFixed(2) }}</span>
-    </button>
+  @click="showMobileCart = true"
+  class="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-30 bg-slate-900 text-white px-6 py-4 rounded-full shadow-[0_15px_40px_rgba(0,0,0,0.4)] flex justify-between items-center font-bold active:scale-95 transition-all w-[90%] max-w-[400px]"
+  :class="{ 'cart-bump': cartPulse }"
+>
+  <div class="flex items-center gap-3">
+    <div class="bg-orange-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs shadow-inner">
+      {{ store.cart.length > 0 ? store.cart.length : activeOrders.length }}
+    </div>
+    <span class="text-sm uppercase tracking-wider">Cuenta / Enviados</span>
+  </div>
+  <div class="h-6 w-px bg-slate-700 mx-2"></div>
+  
+  <span 
+    class="text-emerald-400 text-lg transition-colors" 
+    :class="{ 'text-flash': cartPulse }"
+  >
+    S/. {{ store.totalPrice.toFixed(2) }}
+  </span>
+</button>
     
     <div v-if="showMobileCart" @click="showMobileCart = false" class="lg:hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 transition-opacity"></div>
   </div>
@@ -701,3 +735,89 @@ function confirmCancelPos() {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* ══════════════════════════════════════════════════
+   PRECIO — efecto "slam": cae desde arriba,
+   rebota elásticamente y aterriza en su lugar.
+   Mucho más legible que el flip: el mesero ve
+   el nuevo monto desde el primer frame.
+══════════════════════════════════════════════════ */
+.text-flash {
+  animation: price-slam 2s cubic-bezier(0.22, 1, 0.36, 1);
+  display: inline-block;
+  transform-origin: center bottom;
+}
+
+@keyframes price-slam {
+  0%   { transform: translateY(-18px) scale(1.35); opacity: 0; color: #f97316; }
+  55%  { transform: translateY(4px)   scale(0.92); opacity: 1; color: #f97316; }
+  72%  { transform: translateY(-3px)  scale(1.04);             color: #f97316; }
+  85%  { transform: translateY(1px)   scale(0.98);             color: inherit; }
+  100% { transform: translateY(0)     scale(1);                color: inherit; }
+}
+
+
+/* ══════════════════════════════════════════════════
+   CARRITO MÓVIL — sacudida con rotación
+   (no usa translateY absoluto → no rompe centrado)
+══════════════════════════════════════════════════ */
+.cart-bump-mobile {
+  animation: cart-shake-mobile 2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes cart-shake-mobile {
+  0%   { transform: scale(1)    rotate(0deg);  }
+  20%  { transform: scale(1.25) rotate(-12deg);}
+  40%  { transform: scale(0.9)  rotate(8deg);  }
+  65%  { transform: scale(1.1)  rotate(-4deg); }
+  85%  { transform: scale(0.97) rotate(1deg);  }
+  100% { transform: scale(1)    rotate(0deg);  }
+}
+
+
+/* ══════════════════════════════════════════════════
+   CARRITO TABLET/PC — igual pero más contenido
+══════════════════════════════════════════════════ */
+.cart-bump-desktop {
+  animation: cart-shake-desktop 2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes cart-shake-desktop {
+  0%   { transform: scale(1)    rotate(0deg); }
+  20%  { transform: scale(1.18) rotate(-8deg);}
+  40%  { transform: scale(0.94) rotate(5deg); }
+  65%  { transform: scale(1.07) rotate(-2deg);}
+  85%  { transform: scale(0.98) rotate(0deg); }
+  100% { transform: scale(1)    rotate(0deg); }
+}
+
+
+/* ══════════════════════════════════════════════════
+   CARD/CONTENEDOR — ring naranja confirma al mesero
+   que el ítem fue sumado sin molestar al cliente
+══════════════════════════════════════════════════ */
+.card-confirm {
+  animation: card-ring 2s ease-out;
+}
+
+@keyframes card-ring {
+  0%   { box-shadow: 0 0 0 0px rgba(249, 115, 22, 0);    }
+  35%  { box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.40); }
+  100% { box-shadow: 0 0 0 0px rgba(249, 115, 22, 0);    }
+}
+
+
+/* ══════════════════════════════════════════════════
+   BADGE (contador del carrito) — pop con rotación
+══════════════════════════════════════════════════ */
+.badge-pop {
+  animation: badge-pop 2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes badge-pop {
+  0%   { transform: scale(0) rotate(-15deg); }
+  65%  { transform: scale(1.3) rotate(5deg); }
+  100% { transform: scale(1)   rotate(0deg); }
+}
+</style>
