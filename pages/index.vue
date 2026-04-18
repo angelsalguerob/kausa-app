@@ -29,54 +29,8 @@ function saveNewGoal() {
   showGoalModal.value = false
 }
 
-// 🚀 --- PULL TO REFRESH (LÓGICA TÁCTIL) ---
-const touchStartY = ref(0)
-const touchCurrentY = ref(0)
-const isPulling = ref(false)
-const pullDistance = computed(() => Math.max(0, touchCurrentY.value - touchStartY.value))
-const showRefreshSpinner = computed(() => pullDistance.value > 60)
-const isManualRefreshing = ref(false)
-
-function handleTouchStart(e) {
-  if (window.scrollY === 0) {
-    touchStartY.value = e.touches[0].clientY
-    isPulling.value = true
-  }
-}
-
-function handleTouchMove(e) {
-  if (!isPulling.value) return
-  touchCurrentY.value = e.touches[0].clientY
-  if (pullDistance.value > 0) {
-    e.preventDefault()
-  }
-}
-
-async function handleTouchEnd() {
-  if (!isPulling.value) return
-  
-  if (pullDistance.value > 80 && ["admin", "glorianora"].includes(store.user?.role)) {
-    isManualRefreshing.value = true
-    try {
-      await store.loadStats()
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setTimeout(() => { isManualRefreshing.value = false }, 500)
-    }
-  }
-  
-  isPulling.value = false
-  touchStartY.value = 0
-  touchCurrentY.value = 0
-}
-
+// 🟢 AQUÍ ARRANCA TODO
 onMounted(() => {
-  // Eventos para el Pull to Refresh
-  document.addEventListener('touchstart', handleTouchStart, { passive: true })
-  document.addEventListener('touchmove', handleTouchMove, { passive: false })
-  document.addEventListener('touchend', handleTouchEnd)
-
   // 1. Iniciamos el reloj
   clockInterval = setInterval(() => {
     currentTime.value = new Date()
@@ -142,12 +96,10 @@ onMounted(() => {
   }, 150)
 })
 
+// 🔴 AQUÍ SE LIMPIA TODO
 onUnmounted(() => {
   if (syncInterval) clearInterval(syncInterval)
   if (clockInterval) clearInterval(clockInterval)
-  document.removeEventListener('touchstart', handleTouchStart)
-  document.removeEventListener('touchmove', handleTouchMove)
-  document.removeEventListener('touchend', handleTouchEnd)
 })
 
 // --- LÓGICA DEL RELOJ MEJORADA ---
@@ -171,7 +123,6 @@ const dateString = computed(() => {
   const rawDate = currentTime.value.toLocaleDateString('es-PE', options)
   return rawDate.charAt(0).toUpperCase() + rawDate.slice(1) 
 })
-
 
 const roleNames = {
   admin: "Soporte TI",
@@ -440,15 +391,6 @@ function iniciarAnalisis() {
 
   <div v-else-if="store.user" class="min-h-screen bg-gray-50 p-4 md:p-6 relative">
     
-    <div 
-      class="absolute top-0 left-1/2 -translate-x-1/2 flex justify-center items-center pointer-events-none transition-transform z-50"
-      :style="`transform: translateY(${Math.min(pullDistance - 50, 20)}px); opacity: ${pullDistance > 20 ? 1 : 0};`"
-    >
-      <div class="bg-white rounded-full p-2 shadow-md border border-gray-100 flex items-center justify-center" :class="(showRefreshSpinner || isManualRefreshing) ? 'animate-spin' : ''">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
-      </div>
-    </div>
-
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
       
       <div class="lg:col-span-2 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-5 md:p-8 rounded-2xl border border-gray-200 shadow-sm">
