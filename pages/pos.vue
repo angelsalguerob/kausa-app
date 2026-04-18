@@ -1,3 +1,4 @@
+//pages/pos.vue
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue' 
 import { usePosStore } from '../stores/pos'
@@ -183,50 +184,15 @@ async function syncCatalog() {
   }
 }
 
-// 🚀 --- PULL TO REFRESH (LÓGICA TÁCTIL) ---
-const touchStartY = ref(0)
-const touchCurrentY = ref(0)
-const isPulling = ref(false)
-const pullDistance = computed(() => Math.max(0, touchCurrentY.value - touchStartY.value))
-const showRefreshSpinner = computed(() => pullDistance.value > 60)
-
-function handleTouchStart(e) {
-  if (window.scrollY === 0) {
-    touchStartY.value = e.touches[0].clientY
-    isPulling.value = true
-  }
-}
-
-function handleTouchMove(e) {
-  if (!isPulling.value) return
-  touchCurrentY.value = e.touches[0].clientY
-  if (pullDistance.value > 0) e.preventDefault()
-}
-
-async function handleTouchEnd() {
-  if (!isPulling.value) return
-  if (pullDistance.value > 80) {
-    // 🚀 AQUÍ RECARGAMOS EL CATÁLOGO Y LOS PEDIDOS ENVIADOS
-    syncCatalog()
-    loadActiveOrders()
-  }
-  isPulling.value = false
-  touchStartY.value = 0
-  touchCurrentY.value = 0
-}
+// 🧹 (SE ELIMINARON TODAS LAS VARIABLES Y EVENTOS DEL PULL TO REFRESH MANUAL)
 
 onMounted(() => {
-  document.addEventListener('touchstart', handleTouchStart, { passive: true })
-  document.addEventListener('touchmove', handleTouchMove, { passive: false })
-  document.addEventListener('touchend', handleTouchEnd)
   syncCatalog() 
+  loadActiveOrders() // 🚀 Agregado aquí para que los pedidos carguen al abrir el POS
   syncInterval = setInterval(syncCatalog, 15000) 
 })
 
 onUnmounted(() => {
-  document.removeEventListener('touchstart', handleTouchStart)
-  document.removeEventListener('touchmove', handleTouchMove)
-  document.removeEventListener('touchend', handleTouchEnd)
   if (syncInterval) clearInterval(syncInterval)
 })
 
@@ -295,16 +261,7 @@ function confirmCancelPos() {
 
 <template>
   <div class="flex h-full lg:gap-6 relative overflow-hidden lg:overflow-visible">
-    <div 
-      class="absolute top-4 left-1/2 -translate-x-1/2 flex justify-center items-center pointer-events-none transition-transform z-[100]"
-      :style="`transform: translateY(${Math.min(pullDistance - 50, 20)}px); opacity: ${pullDistance > 20 ? 1 : 0};`"
-    >
-      <div class="bg-white rounded-full p-2 shadow-md border border-gray-100 flex items-center justify-center" :class="showRefreshSpinner ? 'animate-spin' : ''">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
-      </div>
-    </div>
-    
-    <div class="flex-1 flex flex-col overflow-hidden pb-24 lg:pb-0 w-full">
+       <div class="flex-1 flex flex-col overflow-hidden pb-24 lg:pb-0 w-full">
       
       <header class="mb-6 flex flex-col gap-4">
         <div class="relative shadow-sm flex items-center">
