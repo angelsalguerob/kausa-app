@@ -40,8 +40,10 @@ export default defineEventHandler(async (event) => {
         total: parseFloat(body.total),
         status: 'Pendiente', // Para que la cocina lo vea
         description: body.description || "ERROR: NO LLEGÓ",
-        dailyTicket: nextTicket, // <--- Guardamos el correlativo diario corregido
-        table: body.table || 'Caja'
+        dailyTicket: nextTicket, 
+        table: body.table || 'Caja',
+        // 🚀 NUEVA LÍNEA: Guardamos el turno. Si por alguna razón no llega, le ponemos 1 por defecto.
+        turno: Number(body.turno) || 1 
       }
     })
 

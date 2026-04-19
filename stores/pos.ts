@@ -60,13 +60,17 @@ export const usePosStore = defineStore('pos', {
       totalPagado: 0,
       totalPorCobrar: 0,
       count: 0, 
-      recent: [] as any[] 
+      recent: [] as any[],
+      totalEfectivo: 0,
+      totalDigital: 0
     },
-    // 🚀 NUEVO: RADAR DE ALERTAS GLOBALES
     globalAlerts: {
       kitchenCount: 0,
       hasPendingPayments: false
-    }
+    },
+    turnoActual: process.client ? (Number(localStorage.getItem('kausa_turno_actual')) || 1) : 1,
+    // 🚀 NUEVO: Guardamos el PIN en memoria para que Ajustes pueda leerlo
+    activePin: process.client ? (localStorage.getItem('kausa_active_pin') || '0000') : '0000'
   }),
 
   getters: {
@@ -92,18 +96,15 @@ export const usePosStore = defineStore('pos', {
       }
     },
 
-    // 🚀 NUEVO: FUNCIÓN PARA REVISAR ALERTAS
     async checkGlobalAlerts() {
       if (!this.user) return
 
       try {
-        // 1. Revisar Cocina (Cualquiera con rol de cocina o admin lo necesita)
         if (['admin', 'glorianora', 'cocina'].includes(this.user.role)) {
           const kitchenData = await $fetch<any[]>('/api/orders/kitchen').catch(() => [])
           this.globalAlerts.kitchenCount = kitchenData ? kitchenData.length : 0
         }
 
-        // 2. Revisar Pagos Pendientes (Solo Admin/Gloria)
         if (['admin', 'glorianora'].includes(this.user.role)) {
           const statsData = await $fetch<any>('/api/orders/stats').catch(() => null)
           if (statsData) {
@@ -147,20 +148,134 @@ export const usePosStore = defineStore('pos', {
     },
     
     // --- ESTADÍSTICAS Y ÓRDENES ---
+    
+    // 🚀 NUEVO: Helper para generar un PIN aleatorio de 4 dígitos
+    generarNuevoPin() {
+      return Math.floor(1000 + Math.random() * 9000).toString()
+    },
+
+    // 🚀 NUEVO: Sincronizador de PIN con el servidor
+    async syncPinWithDatabase() {
+      try {
+        const data = await $fetch<any>('/api/settings/active-pin')
+        if (data && data.pin) {
+          // Si el servidor dice '0000' (la base de datos está vacía por ser la primera vez)
+          // y el usuario es Admin, forzamos la creación de un PIN real.
+          if (data.pin === '0000' && ['admin', 'glorianora'].includes(this.user?.role || '')) {
+            const nuevoPin = this.generarNuevoPin()
+            this.activePin = nuevoPin
+            localStorage.setItem('kausa_active_pin', nuevoPin)
+            await $fetch('/api/settings/update-pin', { method: 'POST', body: { pin: nuevoPin } })
+          } else {
+            // Si el servidor tiene un PIN real, actualizamos la pantalla de Gloria
+            this.activePin = data.pin
+            localStorage.setItem('kausa_active_pin', data.pin)
+          }
+        }
+      } catch (error) {
+        console.error("Error sincronizando PIN con el servidor", error)
+      }
+    },
+
     async loadStats() {
       try {
-        const data = await $fetch<any>('/api/orders/stats')
-        this.stats.totalVentas = data.totalVentas || 0
-        this.stats.totalPagado = data.totalPagado || 0
-        this.stats.totalPorCobrar = data.totalPorCobrar || 0
-        this.stats.count = data.totalOrders || 0
-        this.stats.recent = data.recent || []
+        await this.syncPinWithDatabase()
+        const statsData = await $fetch<any>('/api/orders/stats')
+        const hoy = new Date()
+        const dateString = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
         
-        // Actualizamos la alerta de paso
+        const ordersData = await $fetch<any[]>(`/api/orders/by-date?date=${dateString}`).catch(() => [])
+
+        const lastCloseStr = localStorage.getItem('kausa_last_close')
+        let lastCloseTime = 0
+        
+        if (lastCloseStr) {
+          const closeDate = new Date(lastCloseStr)
+          
+          if (closeDate.toDateString() === hoy.toDateString()) {
+            lastCloseTime = closeDate.getTime()
+          } else {
+            // 🚀 ES UN NUEVO DÍA: Reseteamos turno a 1
+            this.turnoActual = 1
+            localStorage.setItem('kausa_turno_actual', '1')
+
+            // 🚀 SEGURIDAD: Destruimos el PIN de ayer y generamos uno nuevo al abrir el día
+            const nuevoPin = this.generarNuevoPin()
+            this.activePin = nuevoPin
+            localStorage.setItem('kausa_active_pin', nuevoPin)
+            
+            // Lo guardamos silenciosamente en la BD
+            $fetch('/api/settings/update-pin', {
+              method: 'POST',
+              body: { pin: nuevoPin }
+            }).catch(() => {})
+          }
+        }
+
+        const ordenesDelTurno = ordersData.filter(o => new Date(o.createdAt).getTime() > lastCloseTime)
+
+        let efectivo = 0
+        let digital = 0
+        let porCobrar = 0
+        let ventasBrutasTurno = 0
+
+        ordenesDelTurno.forEach((order) => {
+          const monto = Number(order.total)
+          ventasBrutasTurno += monto
+
+          const status = order.paymentStatus === 'Pagado' ? 'Efectivo' : order.paymentStatus
+
+          if (status === 'Efectivo') {
+            efectivo += monto
+          } else if (status === 'Yape / Plin' || status === 'Tarjeta') {
+            digital += monto
+          } else {
+            porCobrar += monto
+          }
+        })
+
+        this.stats.totalVentas = ventasBrutasTurno
+        this.stats.totalPagado = efectivo + digital
+        this.stats.count = ordenesDelTurno.length
+        
+        this.stats.recent = (statsData.recent || []).filter((o: any) => new Date(o.createdAt).getTime() > lastCloseTime)
+
+        this.stats.totalEfectivo = efectivo
+        this.stats.totalDigital = digital
+        this.stats.totalPorCobrar = porCobrar 
+        
         this.globalAlerts.hasPendingPayments = this.stats.totalPorCobrar > 0
       } catch (error) { 
-        console.error('Error cargando estadísticas', error) 
+        console.error('Error cargando estadísticas y ventas del día', error) 
       }
+    },
+
+    async resetearVentasDelDia() {
+      const ahora = new Date()
+      localStorage.setItem('kausa_last_close', ahora.toISOString())
+
+      this.turnoActual++
+      localStorage.setItem('kausa_turno_actual', this.turnoActual.toString())
+
+      // 🚀 SEGURIDAD: Generamos nuevo PIN para el siguiente turno (Cierre de Caja)
+      const nuevoPin = this.generarNuevoPin()
+      this.activePin = nuevoPin
+      localStorage.setItem('kausa_active_pin', nuevoPin)
+
+      try {
+        await $fetch('/api/settings/update-pin', {
+          method: 'POST',
+          body: { pin: nuevoPin }
+        })
+      } catch (e) {
+        console.error("Error guardando el nuevo PIN en BD", e)
+      }
+
+      await this.loadStats()
+      console.log("Caja cerrada. Pasando al Turno:", this.turnoActual)
+      
+      // Le mostramos a Gloria el PIN del nuevo turno para que se lo dé al equipo
+      return { turno: this.turnoActual, pin: nuevoPin }
     },
 
     decrementarAlertaCocina() {
@@ -170,7 +285,6 @@ export const usePosStore = defineStore('pos', {
     },
 
     apagarAlertaPagos() {
-      // Asumimos que ya no hay deudas. Si queda alguna, el radar de 15 segs la volverá a prender sola.
       this.globalAlerts.hasPendingPayments = false
     },
 
@@ -193,22 +307,23 @@ export const usePosStore = defineStore('pos', {
       }
       this.orders.unshift(newOrder)
 
-      // ⚡ MAGIA INSTANTÁNEA: Subimos la alerta de cocina en 1 milisegundo
       if (['admin', 'glorianora', 'cocina'].includes(this.user?.role || '')) {
         this.globalAlerts.kitchenCount++
       }
 
-      // El $fetch trabaja en segundo plano, NO bloquea la pantalla
       $fetch<any>('/api/orders/create', {
         method: 'POST',
-        body: { total: totalVenta, description: descripcionPedido, table: tableName }
+        body: { 
+          total: totalVenta, 
+          description: descripcionPedido, 
+          table: tableName,
+          turno: this.turnoActual 
+        }
       }).then(savedOrder => {
         newOrder.id = '#' + (savedOrder.dailyTicket || savedOrder.id)
         this.loadStats() 
-        // Ya no llamamos a checkGlobalAlerts() aquí porque ya lo hicimos arriba manual
       }).catch(error => {
         console.error("Fallo al guardar", error)
-        // Si falla la red, bajamos la alerta que subimos por error
         this.decrementarAlertaCocina() 
         alert('Cuidado: Hubo un problema de red guardando el último pedido.')
       })

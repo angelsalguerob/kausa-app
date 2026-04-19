@@ -8,7 +8,7 @@ const store = usePosStore()
 // 1. LÓGICA DE FECHAS Y RELOJ
 const hoy = new Date()
 const selectedYear = ref(hoy.getFullYear())
-const selectedMonth = ref(hoy.getMonth()) 
+const selectedMonth = ref(hoy.getMonth())
 const selectedDay = ref(hoy.getDate())
 
 const currentTime = ref(new Date())
@@ -29,7 +29,7 @@ function prevMonth() {
   } else {
     selectedMonth.value--
   }
-  selectedDay.value = 1 
+  selectedDay.value = 1
   generateDays()
 }
 
@@ -71,7 +71,7 @@ const allSelected = computed({
 
 function calcularMetricas() {
   let bruto = 0
-  let efectivo = 0 // <--- Una sola 'c'
+  let efectivo = 0
   let digital = 0
   let porCobrar = 0
 
@@ -85,7 +85,7 @@ function calcularMetricas() {
     } else if (status === 'Yape / Plin' || status === 'Tarjeta') {
       digital += monto
     } else {
-      porCobrar += monto 
+      porCobrar += monto
     }
   })
 
@@ -96,7 +96,7 @@ function calcularMetricas() {
 }
 
 watch(selectedDay, async () => {
-  selectedOrders.value = [] 
+  selectedOrders.value = []
   await fetchOrders()
 })
 
@@ -117,7 +117,7 @@ async function fetchOrders() {
   } catch (error) {
     console.error("Error al cargar las ventas:", error)
     orders.value = []
-    calcularMetricas() 
+    calcularMetricas()
   } finally {
     isLoading.value = false
   }
@@ -139,7 +139,7 @@ async function actualizarPago(orden) {
     calcularMetricas()
   } catch (error) {
     alert('No se pudo actualizar el estado de pago. Revisa tu conexión.')
-    await fetchOrders() 
+    await fetchOrders()
   }
 }
 
@@ -173,7 +173,7 @@ function bulkUpdatePayment(nuevoStatus) {
   })).catch(error => {
     console.error('Error actualizando pagos en BD:', error)
     alert('Uy, hubo un problema de red. Actualizando con los datos reales del servidor...')
-    fetchOrders() 
+    fetchOrders()
   })
 }
 
@@ -182,24 +182,29 @@ function exportToExcel() {
   if (orders.value.length === 0) {
     return alert('No hay ventas registradas en esta fecha para exportar.');
   }
-  
-  // 🚀 MAGIA AQUÍ: Cambiamos las comas (,) por punto y coma (;) para Excel Perú
-  let csv = 'Ticket;Fecha y Hora;Mesa / Cliente;Cantidad;Producto;Entrada (Item 1);Segundo (Item 2);Bebida (Item 3);Postre (Item 4);Estado de Pago;Total Ticket (S/.)\n';
-  
+
+  // 🚀 CAMBIO 1: Separamos Fecha y Hora en las cabeceras
+  let csv = 'Ticket;Turno;Fecha;Hora;Mesa / Cliente;Cantidad;Producto;Entrada (Item 1);Segundo (Item 2);Bebida (Item 3);Postre (Item 4);Estado de Pago;Total Ticket (S/.)\n';
+
   orders.value.forEach(o => {
-    // Limpiamos la fecha de comas o punto y comas para que no rompa el formato
-    const fecha = new Date(o.createdAt).toLocaleString('es-PE').replace(/,|;/g, ''); 
-    const ticketNum = o.dailyTicket || o.id; 
+    // 🚀 CAMBIO 2: Extraemos fecha y hora por separado
+    const dateObj = new Date(o.createdAt);
+    const fechaOnly = dateObj.toLocaleDateString('es-PE'); // Ej: 19/04/2026
+    const horaOnly = dateObj.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: true }); // Ej: 09:17 a.m.
+
+    const ticketNum = o.dailyTicket || o.id;
+    // 🚀 CAMBIO 3: Formato T-1, T-2
+    const turnoExcel = `T-${o.turno || 1}`;
     const destino = (o.table || 'Caja').replace(/;/g, '-');
     const estadoPago = o.paymentStatus;
     const totalTicket = Number(o.total).toFixed(2);
 
     // Si es un pedido simple (sin descripción)
     if (!o.description) {
-      csv += `${ticketNum};${fecha};${destino};1;Venta de Salón;-;-;-;-;${estadoPago};${totalTicket}\n`;
+      csv += `${ticketNum};${turnoExcel};${fechaOnly};${horaOnly};${destino};1;Venta de Salón;-;-;-;-;${estadoPago};${totalTicket}\n`;
       return;
     }
-    
+
     // Partimos el pedido por productos
     const productosEnElTicket = o.description.split(/,\s*(?![^\[]*\])/);
 
@@ -221,7 +226,7 @@ function exportToExcel() {
       // Extraemos las opciones del menú (Ej: [Ceviche, Lomo, Sin bebida, Flan])
       const detailsMatch = producto.match(/(.*?)\s*\[(.*?)\]$/);
       if (detailsMatch) {
-        producto = detailsMatch[1].trim(); 
+        producto = detailsMatch[1].trim();
         const partesCombo = detailsMatch[2].split(',');
         if (partesCombo[0]) entrada = partesCombo[0].trim();
         if (partesCombo[1]) segundo = partesCombo[1].trim();
@@ -231,18 +236,18 @@ function exportToExcel() {
 
       // Quitamos cualquier punto y coma rebelde del nombre para no romper Excel
       producto = producto.replace(/;/g, '');
-      
-      // Armamos la fila con punto y coma
-      csv += `${ticketNum};${fecha};${destino};${cantidad};${producto};${entrada};${segundo};${bebida};${postre};${estadoPago};${totalTicket}\n`;
+
+      // 🚀 EL BUG ARREGLADO: Añadimos ${turnoExcel}, ${fechaOnly} y ${horaOnly} para que no se corran las columnas
+      csv += `${ticketNum};${turnoExcel};${fechaOnly};${horaOnly};${destino};${cantidad};${producto};${entrada};${segundo};${bebida};${postre};${estadoPago};${totalTicket}\n`;
     });
   });
 
   // Exportamos con codificación UTF-8 para que las tildes (ñ, á) se vean perfectas
-  const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' }); 
+  const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.setAttribute('download', `Reporte_Detallado_Kausa_${selectedDay.value}_${monthsNames[selectedMonth.value]}.csv`);
+  link.setAttribute('download', `Reporte_Kausa_${selectedDay.value}_${monthsNames[selectedMonth.value]}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -256,11 +261,11 @@ function formatTime(dateString) {
 
 onMounted(() => {
   generateDays()
-  fetchOrders() 
+  fetchOrders()
   clockInterval = setInterval(() => { currentTime.value = new Date() }, 1000)
   setTimeout(() => {
     const activeBtn = document.getElementById(`day-btn-${selectedDay.value}`)
-    if(activeBtn) activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    if (activeBtn) activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
   }, 100)
 })
 
@@ -277,19 +282,34 @@ function toggleMobileSelection(orderId) {
     selectedOrders.value.splice(index, 1)
   }
 }
+
+// 🚀 NUEVO: Función para rotar los 5 colores de los turnos
+function getTurnoColor(turno) {
+  const num = Number(turno) || 1
+  const colores = [
+    'bg-sky-50 text-sky-600 border-sky-200',         // Turno 5, 10...
+    'bg-indigo-50 text-indigo-600 border-indigo-200', // Turno 1, 6...
+    'bg-emerald-50 text-emerald-600 border-emerald-200', // Turno 2, 7...
+    'bg-amber-50 text-amber-600 border-amber-200',   // Turno 3, 8...
+    'bg-rose-50 text-rose-600 border-rose-200',      // Turno 4, 9...
+  ]
+  return colores[num % 5]
+}
 </script>
 
 <template>
-  <div class="min-h-[calc(100vh-80px)] bg-gray-50 p-4 md:p-6 pb-32 relative"> 
-      <div class="mb-6 md:mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+  <div class="min-h-[calc(100vh-80px)] bg-gray-50 p-4 md:p-6 pb-32 relative">
+    <div class="mb-6 md:mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
         <h1 class="text-2xl md:text-3xl font-black text-slate-800">Historial Financiero</h1>
         <p class="text-slate-500 text-sm md:text-base">Control de ingresos, cuentas por cobrar y rendimiento</p>
       </div>
-      
+
       <div class="bg-white border border-gray-200 shadow-sm px-4 md:px-5 py-2 md:py-3 rounded-2xl flex items-center gap-3 w-max">
         <div class="bg-orange-100 text-orange-600 p-1.5 md:p-2 rounded-lg">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </svg>
         </div>
         <div class="flex items-baseline gap-1.5 text-slate-700">
           <span class="font-mono font-black text-xl md:text-2xl tracking-widest">
@@ -302,30 +322,27 @@ function toggleMobileSelection(orderId) {
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 md:p-6 mb-6 md:mb-8">
       <div class="flex items-center justify-between mb-4 md:mb-6">
         <button @click="prevMonth" class="p-1.5 md:p-2 hover:bg-orange-50 rounded-lg text-slate-400 hover:text-orange-500 transition">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
         </button>
-        
+
         <div class="text-center">
           <span class="text-xl md:text-2xl font-black text-slate-800 uppercase tracking-wide">{{ monthsNames[selectedMonth] }}</span>
           <span class="text-base md:text-lg font-bold text-orange-500 ml-2">{{ selectedYear }}</span>
         </div>
 
         <button @click="nextMonth" class="p-1.5 md:p-2 hover:bg-orange-50 rounded-lg text-slate-400 hover:text-orange-500 transition">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
         </button>
       </div>
 
       <div class="flex overflow-x-auto pb-2 md:pb-4 gap-2 md:gap-3 snap-x scrollbar-hide">
-        <button 
-          v-for="day in daysInMonth" 
-          :key="day"
-          :id="`day-btn-${day}`"
-          @click="selectedDay = day"
+        <button v-for="day in daysInMonth" :key="day" :id="`day-btn-${day}`" @click="selectedDay = day"
           class="flex-shrink-0 w-14 h-16 md:w-16 md:h-20 rounded-xl flex flex-col items-center justify-center transition-all duration-200 border-2 snap-center"
-          :class="selectedDay === day 
-            ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105' 
-            : 'bg-white border-gray-100 text-slate-600 hover:border-orange-200 hover:bg-orange-50'"
-        >
+          :class="selectedDay === day ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105' : 'bg-white border-gray-100 text-slate-600 hover:border-orange-200 hover:bg-orange-50'">
           <span class="text-xs md:text-sm font-medium opacity-80">Día</span>
           <span class="text-xl md:text-2xl font-black">{{ day }}</span>
         </button>
@@ -337,13 +354,11 @@ function toggleMobileSelection(orderId) {
     </div>
 
     <div v-else>
-      
       <div class="flex justify-end mb-4">
-        <button 
-          @click="exportToExcel"
-          class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl shadow-sm transition text-sm md:text-base"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 md:w-5 md:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+        <button @click="exportToExcel" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl shadow-sm transition text-sm md:text-base">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 md:w-5 md:h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+          </svg>
           Descargar Excel
         </button>
       </div>
@@ -356,17 +371,21 @@ function toggleMobileSelection(orderId) {
             <p class="text-[10px] md:text-xs text-blue-200 mt-1 font-medium">Suma de Efectivo, Digital y Fiados</p>
           </div>
           <div class="p-2 md:p-3 bg-white/20 rounded-xl text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 md:w-8 md:h-8"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 md:w-8 md:h-8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" />
+            </svg>
           </div>
         </div>
-        
+
         <div class="bg-white border border-gray-200 p-5 md:p-6 rounded-2xl flex justify-between items-center shadow-sm">
           <div>
             <p class="text-slate-400 font-bold text-xs md:text-sm uppercase tracking-wider mb-1">Total Pedidos Emitidos</p>
             <p class="text-3xl md:text-4xl font-black text-slate-800">{{ orders.length }}</p>
           </div>
           <div class="p-2 md:p-3 bg-gray-100 rounded-xl text-slate-500">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 md:w-8 md:h-8"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 md:w-8 md:h-8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+            </svg>
           </div>
         </div>
       </div>
@@ -379,7 +398,9 @@ function toggleMobileSelection(orderId) {
             <p class="text-xl md:text-2xl font-black text-emerald-700">S/. {{ totalEfectivo.toFixed(2) }}</p>
           </div>
           <div class="p-2 md:p-2.5 bg-emerald-100 rounded-xl text-emerald-600 relative z-10">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.375c0 .621-.504 1.125-1.125 1.125H2.25m0 0h-.375c-.621 0-1.125-.504-1.125-1.125V21m12-3-3m-3.75 3c-.621 0-1.125-.504-1.125-1.125V18m1.5-1.5h4.5a.75.75 0 0 0 .75-.75v-1.5a.75.75 0 0 0-.75-.75h-4.5a.75.75 0 0 0-.75.75v1.5c0 .414.336.75.75.75Zm9.25-8.5h.008v.008h-.008v-.008Z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.375c0 .621-.504 1.125-1.125 1.125H2.25m0 0h-.375c-.621 0-1.125-.504-1.125-1.125V21m12-3-3m-3.75 3c-.621 0-1.125-.504-1.125-1.125V18m1.5-1.5h4.5a.75.75 0 0 0 .75-.75v-1.5a.75.75 0 0 0-.75-.75h-4.5a.75.75 0 0 0-.75.75v1.5c0 .414.336.75.75.75Zm9.25-8.5h.008v.008h-.008v-.008Z" />
+            </svg>
           </div>
         </div>
 
@@ -390,7 +411,9 @@ function toggleMobileSelection(orderId) {
             <p class="text-xl md:text-2xl font-black text-purple-700">S/. {{ totalDigital.toFixed(2) }}</p>
           </div>
           <div class="p-2 md:p-2.5 bg-purple-200 rounded-xl text-purple-600 relative z-10">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+            </svg>
           </div>
         </div>
 
@@ -401,14 +424,18 @@ function toggleMobileSelection(orderId) {
             <p class="text-xl md:text-2xl font-black text-amber-700">S/. {{ totalPorCobrar.toFixed(2) }}</p>
           </div>
           <div class="p-2 md:p-2.5 bg-amber-100 rounded-xl text-amber-600 relative z-10">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+            </svg>
           </div>
         </div>
       </div>
 
       <div v-if="orders.length === 0" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 md:p-12 text-center text-slate-500">
-         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 md:w-16 md:h-16 mb-4 opacity-40 mx-auto"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h3.218a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 0 0-2.15-1.588H6.911a2.25 2.25 0 0 0-2.15 1.588L2.35 13.177a2.25 2.25 0 0 0-.1.661Z" /></svg>
-         No hay ventas registradas el {{ selectedDay }} de {{ monthsNames[selectedMonth] }}.
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 md:w-16 md:h-16 mb-4 opacity-40 mx-auto">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h3.218a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 0 0-2.15-1.588H6.911a2.25 2.25 0 0 0-2.15 1.588L2.35 13.177a2.25 2.25 0 0 0-.1.661Z" />
+        </svg>
+        No hay ventas registradas el {{ selectedDay }} de {{ monthsNames[selectedMonth] }}.
       </div>
 
       <div v-else class="md:hidden space-y-3">
@@ -418,22 +445,27 @@ function toggleMobileSelection(orderId) {
             Seleccionar Todos
           </label>
         </div>
-        
-        <div v-for="order in orders" :key="order.id" 
-             class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm relative overflow-hidden transition-all duration-200"
-             :class="{'ring-2 ring-orange-500 bg-orange-50/30': selectedOrders.includes(order.id)}"
-             @click="toggleMobileSelection(order.id)">
-          
+
+        <div v-for="order in orders" :key="order.id"
+          class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm relative overflow-hidden transition-all duration-200"
+          :class="{ 'ring-2 ring-orange-500 bg-orange-50/30': selectedOrders.includes(order.id) }"
+          @click="toggleMobileSelection(order.id)">
+
           <div class="absolute top-4 right-4 z-10" @click.stop>
             <input type="checkbox" :value="order.id" v-model="selectedOrders" class="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500 cursor-pointer">
           </div>
 
           <div class="flex justify-between items-start mb-3 pr-8">
             <div>
-              <span class="font-mono font-black text-slate-800 text-base block">#{{ order.dailyTicket || order.id }}</span>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-mono font-black text-slate-800 text-base block">#{{ order.dailyTicket || order.id }}</span>
+                <span :class="getTurnoColor(order.turno)" class="font-black px-2 py-0.5 rounded-md text-[10px] border">
+                  T-{{ order.turno || 1 }}
+                </span>
+              </div>
               <span class="text-xs text-slate-500 font-medium">{{ formatTime(order.createdAt) }}</span>
             </div>
-            <div class="text-right">
+            <div class="text-right mt-1">
               <span class="font-bold text-slate-800 text-sm block">{{ order.table || 'Caja' }}</span>
             </div>
           </div>
@@ -444,17 +476,14 @@ function toggleMobileSelection(orderId) {
 
           <div class="flex justify-between items-center pt-3 border-t border-gray-100" @click.stop>
             <div class="flex-1 max-w-[140px]">
-              <select 
-                v-model="order.paymentStatus" 
-                @change="actualizarPago(order)"
+              <select v-model="order.paymentStatus" @change="actualizarPago(order)"
                 class="w-full font-bold text-xs px-2 py-2 rounded-xl outline-none cursor-pointer transition shadow-sm border appearance-none text-center"
                 :class="{
                   'bg-emerald-50 text-emerald-700 border-emerald-200': order.paymentStatus === 'Efectivo',
                   'bg-purple-50 text-purple-700 border-purple-200': order.paymentStatus === 'Yape / Plin' || order.paymentStatus === 'Tarjeta',
                   'bg-amber-50 text-amber-700 border-amber-200': order.paymentStatus === 'Fiado',
                   'bg-slate-50 text-slate-600 border-slate-200': order.paymentStatus === 'Pendiente'
-                }"
-              >
+                }">
                 <option value="Pendiente">Pendiente</option>
                 <option value="Efectivo">Efectivo</option>
                 <option value="Yape / Plin">Yape / Plin</option>
@@ -475,6 +504,7 @@ function toggleMobileSelection(orderId) {
                 <input type="checkbox" v-model="allSelected" class="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500 cursor-pointer">
               </th>
               <th class="p-4 font-bold w-24 lg:w-32">Ticket</th>
+              <th class="p-4 font-bold w-20 text-center">Turno</th>
               <th class="p-4 font-bold w-24 lg:w-32">Hora</th>
               <th class="p-4 font-bold w-32 lg:w-48">Mesa/Cliente</th>
               <th class="p-4 font-bold">Descripción</th>
@@ -483,27 +513,30 @@ function toggleMobileSelection(orderId) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="order in orders" :key="order.id" class="border-b border-gray-50 hover:bg-orange-50/50 transition" :class="{'bg-orange-50': selectedOrders.includes(order.id)}">
+            <tr v-for="order in orders" :key="order.id" class="border-b border-gray-50 hover:bg-orange-50/50 transition"
+              :class="{ 'bg-orange-50': selectedOrders.includes(order.id) }">
               <td class="p-4 text-center">
                 <input type="checkbox" :value="order.id" v-model="selectedOrders" class="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500 cursor-pointer">
               </td>
               <td class="p-4 font-mono font-bold text-slate-700">#{{ order.dailyTicket || order.id }}</td>
+              <td class="p-4 text-center">
+                <span :class="getTurnoColor(order.turno)" class="font-black px-2.5 py-1 rounded-lg text-xs border">
+                  T-{{ order.turno || 1 }}
+                </span>
+              </td>
               <td class="p-4 text-sm font-medium text-slate-500 whitespace-nowrap">{{ formatTime(order.createdAt) }}</td>
               <td class="p-4 font-bold text-slate-800 text-sm whitespace-nowrap truncate">{{ order.table || 'Caja' }}</td>
               <td class="p-4 text-slate-600 text-sm max-w-md xl:max-w-xl truncate" :title="order.description">{{ order.description || 'Venta de Salón' }}</td>
-              
+
               <td class="py-3 text-center px-2">
-                <select 
-                  v-model="order.paymentStatus" 
-                  @change="actualizarPago(order)"
+                <select v-model="order.paymentStatus" @change="actualizarPago(order)"
                   class="w-full font-bold text-xs px-2 py-1.5 rounded-lg outline-none cursor-pointer transition shadow-sm border appearance-none text-center focus:ring-2"
                   :class="{
                     'bg-emerald-50 text-emerald-700 border-emerald-200 focus:ring-emerald-200': order.paymentStatus === 'Efectivo',
                     'bg-purple-50 text-purple-700 border-purple-200 focus:ring-purple-200': order.paymentStatus === 'Yape / Plin' || order.paymentStatus === 'Tarjeta',
                     'bg-amber-50 text-amber-700 border-amber-200 focus:ring-amber-200': order.paymentStatus === 'Fiado',
                     'bg-slate-50 text-slate-600 border-slate-200 focus:ring-slate-200': order.paymentStatus === 'Pendiente'
-                  }"
-                >
+                  }">
                   <option value="Pendiente">Pendiente</option>
                   <option value="Efectivo">Efectivo</option>
                   <option value="Yape / Plin">Yape / Plin</option>
@@ -520,15 +553,12 @@ function toggleMobileSelection(orderId) {
 
     </div>
 
-    <Transition
-      enter-active-class="transform ease-out duration-300 transition"
-      enter-from-class="translate-y-24 opacity-0"
-      enter-to-class="translate-y-0 opacity-100"
-      leave-active-class="transition ease-in duration-200"
-      leave-from-class="translate-y-0 opacity-100"
-      leave-to-class="translate-y-24 opacity-0"
-    >
-      <div v-if="selectedOrders.length > 0" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 backdrop-blur-md text-white p-3 md:p-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] flex flex-col lg:flex-row items-center gap-3 md:gap-4 border border-slate-700 w-[95%] max-w-5xl">
+    <Transition enter-active-class="transform ease-out duration-300 transition"
+      enter-from-class="translate-y-24 opacity-0" enter-to-class="translate-y-0 opacity-100"
+      leave-active-class="transition ease-in duration-200" leave-from-class="translate-y-0 opacity-100"
+      leave-to-class="translate-y-24 opacity-0">
+      <div v-if="selectedOrders.length > 0"
+        class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 backdrop-blur-md text-white p-3 md:p-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] flex flex-col lg:flex-row items-center gap-3 md:gap-4 border border-slate-700 w-[95%] max-w-5xl">
 
         <div class="flex items-center justify-center lg:justify-start gap-3 shrink-0 w-full lg:w-auto px-2 lg:pl-2">
           <div class="bg-orange-500 text-white w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-black text-base md:text-lg shadow-inner">
@@ -538,12 +568,14 @@ function toggleMobileSelection(orderId) {
             <span class="font-bold text-xs md:text-sm leading-tight text-white">Pedidos</span>
             <span class="text-[9px] md:text-[11px] text-slate-400 font-bold uppercase tracking-widest">Seleccionados</span>
           </div>
-          
+
           <button @click="selectedOrders = []" :disabled="isBulkUpdating" class="lg:hidden ml-auto p-2 bg-slate-800 rounded-lg text-slate-400 border border-slate-700">
-             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
-        
+
         <div class="hidden lg:block w-px h-10 bg-slate-700 mx-2"></div>
 
         <div class="flex-1 grid grid-cols-3 lg:flex flex-wrap lg:flex-nowrap items-center justify-center gap-2 w-full">
@@ -557,7 +589,9 @@ function toggleMobileSelection(orderId) {
         <div class="hidden lg:block w-px h-10 bg-slate-700 mx-2"></div>
 
         <button @click="selectedOrders = []" :disabled="isBulkUpdating" class="hidden lg:flex w-full lg:w-auto items-center justify-center gap-2 bg-slate-800 border border-slate-700 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30 disabled:opacity-50 text-slate-300 px-5 py-3.5 rounded-xl transition group" title="Cancelar selección">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 group-hover:scale-110 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 group-hover:scale-110 transition-transform">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
         </button>
 
       </div>
@@ -568,11 +602,12 @@ function toggleMobileSelection(orderId) {
 
 <style scoped>
 .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+  display: none;
 
 }
+
 .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 </style>

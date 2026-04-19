@@ -229,7 +229,7 @@ function getTicketColor(description) {
       </div>
     </header>
 
-    <TransitionGroup name="kitchen-grid" tag="div" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 relative z-0">
+    <TransitionGroup name="kitchen-grid" type="transition" tag="div" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 relative z-0 w-full">
       
       <div v-for="order in orders" :key="order.id"
         class="bg-white rounded-2xl shadow-sm border-2 overflow-hidden flex flex-col hover:shadow-lg transition-all duration-300 relative group"
@@ -407,9 +407,14 @@ function getTicketColor(description) {
 }
 
 /* Tiempos de entrada y salida */
-.kitchen-grid-enter-active,
+.kitchen-grid-enter-active {
+  transition: all 0.35s ease-out;
+}
+
 .kitchen-grid-leave-active {
   transition: all 0.35s ease-out;
+  position: absolute; /* 🚀 MAGIA: Libera el hueco en el grid al instante */
+  z-index: 0;
 }
 
 /* Cuando un pedido ENTRA (Bono: aparece suavecito) */

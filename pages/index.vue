@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, computed, ref, nextTick, watch } from "vue"
 import { useRouter } from "vue-router"
 import { usePosStore } from "../stores/pos"
+import CierreCajaModal from '../components/CierreCajaModal.vue'
 
 const store = usePosStore()
 const router = useRouter()
@@ -9,12 +10,53 @@ let syncInterval = null
 let clockInterval = null
 
 // Variables de control
-const isCheckingAuth = ref(true) 
+const isCheckingAuth = ref(true)
 const currentTime = ref(new Date())
 
 // --- LÓGICA PARA EDITAR LA META ---
 const showGoalModal = ref(false)
 const tempGoal = ref(0)
+
+// Modal cierre de caja y seguridad
+const isArqueoModalOpen = ref(false)
+const showSuccessModal = ref(false)
+const isClosingDb = ref(false) // 🚀 NUEVO: Spinner de carga
+const pinGenerado = ref('') // 🚀 NUEVO: Para mostrar el PIN
+const turnoGenerado = ref('') // 🚀 NUEVO: Para mostrar el Turno
+
+// CONEXIÓN REAL: Estos ya no son fijos, ahora "observan" al store
+const cajaEsperada = computed(() => store.stats.totalEfectivo)
+const yapeEsperado = computed(() => store.stats.totalDigital)
+const porCobrarEsperado = computed(() => store.stats.totalPorCobrar)
+
+// 🚀 LÓGICA DE CIERRE MEJORADA
+const procesarCierre = async (datosArqueo) => {
+  try {
+    // 1. Cerramos el modal INMEDIATAMENTE para evitar el salto de números
+    isArqueoModalOpen.value = false;
+    
+    // 2. Mostramos pantalla de carga para que el usuario no toque nada
+    isClosingDb.value = true;
+
+    // 3. Limpiamos las ventas y recibimos el PIN nuevo de Pinia
+    const resultado = await store.resetearVentasDelDia();
+
+    if (resultado) {
+      turnoGenerado.value = resultado.turno;
+      pinGenerado.value = resultado.pin;
+    }
+
+    // 4. Quitamos la carga y abrimos el Modal de Éxito
+    isClosingDb.value = false;
+    showSuccessModal.value = true;
+
+    console.log("Caja cerrada y dashboard reseteado", datosArqueo);
+  } catch (error) {
+    console.error("Error al cerrar caja:", error);
+    isClosingDb.value = false;
+  }
+}
+//fin cierre de caja
 
 function openGoalModal() {
   tempGoal.value = store.dailyGoal || 0
@@ -31,39 +73,33 @@ function saveNewGoal() {
 
 // 🟢 AQUÍ ARRANCA TODO
 onMounted(() => {
-  // 1. Iniciamos el reloj
   clockInterval = setInterval(() => {
     currentTime.value = new Date()
   }, 1000)
 
-  // 2. Verificación de usuario y carga de pantalla
   setTimeout(async () => {
     if (!store.user) {
       router.push("/login")
       return
     }
-    
+
     isCheckingAuth.value = false
 
-    // 3. CARGAMOS LA MEMORIA DEL CHAT
     const hoy = new Date().toDateString()
     const diaGuardado = localStorage.getItem('kausa_chat_date')
 
     if (diaGuardado === hoy) {
       const savedChat = localStorage.getItem('kausa_chat_history')
       const savedApi = localStorage.getItem('kausa_api_history')
-      
+
       if (savedChat && savedApi) {
         chatHistory.value = JSON.parse(savedChat)
         apiHistory.value = JSON.parse(savedApi)
-        
+
         if (chatHistory.value.length > 0) {
           isChatActive.value = true
-          
           nextTick(() => {
-            setTimeout(() => {
-              scrollToBottom()
-            }, 300)
+            setTimeout(() => { scrollToBottom() }, 300)
           })
         }
       }
@@ -77,22 +113,18 @@ onMounted(() => {
       isChatLoaded.value = true;
     }
 
-    // 4. CARGAMOS ESTADÍSTICAS EN SEGUNDO PLANO
     if (["admin", "glorianora"].includes(store.user.role)) {
       store.loadStats()
-      
+
       const savedGoal = localStorage.getItem('pos_daily_goal')
       if (savedGoal) {
         store.dailyGoal = parseFloat(savedGoal)
       } else {
-        store.initDailyGoal() 
+        store.initDailyGoal()
       }
-      
-      syncInterval = setInterval(() => {
-        store.loadStats()
-      }, 15000)
-    }
 
+      syncInterval = setInterval(() => { store.loadStats() }, 15000)
+    }
   }, 150)
 })
 
@@ -105,12 +137,8 @@ onUnmounted(() => {
 // --- LÓGICA DEL RELOJ MEJORADA ---
 const timeParts = computed(() => {
   const fullTime = currentTime.value.toLocaleTimeString('es-PE', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
   })
-  
   const match = fullTime.match(/([\d:]+)\s*(.*)/)
   return {
     time: match ? match[1] : fullTime,
@@ -121,14 +149,14 @@ const timeParts = computed(() => {
 const dateString = computed(() => {
   const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
   const rawDate = currentTime.value.toLocaleDateString('es-PE', options)
-  return rawDate.charAt(0).toUpperCase() + rawDate.slice(1) 
+  return rawDate.charAt(0).toUpperCase() + rawDate.slice(1)
 })
 
 const roleNames = {
   admin: "Soporte TI",
-  GloriaNora: "Gerencia General",
-  Usuarios: "Salón / Meseros",
-  Chef: "Jefatura de Cocina",
+  glorianora: "Gerencia General",
+  mesero: "Salón / Meseros",
+  cocina: "Jefatura de Cocina",
 }
 
 const goalProgress = computed(() => {
@@ -150,14 +178,14 @@ const surplusAmount = computed(() => {
 })
 
 // --- LÓGICA DE KAUSABOT ---
-const chatHistory = ref([]) 
-const apiHistory = ref([])  
+const chatHistory = ref([])
+const apiHistory = ref([])
 const isLoadingAI = ref(false)
 const userMessage = ref('')
 const chatInputRef = ref(null)
 const isChatActive = ref(false)
 const isChatLoaded = ref(false)
-const chatContainer = ref(null) 
+const chatContainer = ref(null)
 
 watch(chatHistory, (nuevoHistorial) => {
   localStorage.setItem('kausa_chat_history', JSON.stringify(nuevoHistorial))
@@ -176,17 +204,17 @@ function scrollToBottom() {
 async function enviarMensajeAI(mensajeOculto = null) {
   isLoadingAI.value = true
   isChatActive.value = true
-  
+
   const mensajeTexto = mensajeOculto || userMessage.value
   if (!mensajeTexto) return
 
   if (!mensajeOculto) {
     chatHistory.value.push({ role: 'user', text: userMessage.value })
   }
-  
+
   apiHistory.value.push({ role: 'user', parts: [{ text: mensajeTexto }] })
-  userMessage.value = '' 
-  
+  userMessage.value = ''
+
   await nextTick()
   scrollToBottom()
 
@@ -217,14 +245,14 @@ async function enviarMensajeAI(mensajeOculto = null) {
 
       const metodo = order.paymentStatus || 'Pendiente';
       conteoPagos[metodo] = (conteoPagos[metodo] || 0) + 1;
-      
+
       if (metodo.toLowerCase() === 'fiado' || metodo.toLowerCase() === 'pendiente') {
         deudaTotal += (order.total || 0);
       }
     });
 
     const getGanador = (obj) => Object.keys(obj).length > 0 ? Object.keys(obj).reduce((a, b) => obj[a] > obj[b] ? a : b) : "Ninguno";
-    
+
     const platosKeys = Object.keys(conteoPlatos);
     let platoMenosVendido = "Ninguno";
     if (platosKeys.length > 0) {
@@ -232,12 +260,8 @@ async function enviarMensajeAI(mensajeOculto = null) {
       platoMenosVendido = platosKeys[platosKeys.length - 1];
     }
 
-    return { 
-      topPlato: getGanador(conteoPlatos), 
-      bottomPlato: platoMenosVendido,
-      mesaTop: getGanador(conteoMesas),
-      pagoTop: getGanador(conteoPagos),
-      deudaFiada: deudaTotal
+    return {
+      topPlato: getGanador(conteoPlatos), bottomPlato: platoMenosVendido, mesaTop: getGanador(conteoMesas), pagoTop: getGanador(conteoPagos), deudaFiada: deudaTotal
     };
   };
 
@@ -260,14 +284,14 @@ async function enviarMensajeAI(mensajeOculto = null) {
 
   let ventasSemana = 0;
   let pedidosSemana = 0;
-  let fiadoSemana = 0; 
-  let desgloseDias = ""; 
+  let fiadoSemana = 0;
+  let desgloseDias = "";
 
   let analisisHoyReal = { topPlato: "Aún sin datos", bottomPlato: "Aún sin datos", mesaTop: "Aún sin datos", pagoTop: "Aún sin datos", deudaFiada: 0 };
 
   try {
     const promesasDias = [];
-    const nombresDias = []; 
+    const nombresDias = [];
 
     const fHoyStr = hoy.toLocaleDateString('en-CA');
     const promesaHoy = $fetch('/api/orders/by-date', { query: { date: fHoyStr } }).catch(() => []);
@@ -287,21 +311,20 @@ async function enviarMensajeAI(mensajeOculto = null) {
     }
 
     const reporteAyer = resultadosSemana[0] || [];
-    
+
     resultadosSemana.forEach((diaReporte, index) => {
-      let vDia = 0;
-      let pDia = 0;
-      let intelDia = { topPlato: "Ninguno", bottomPlato: "Ninguno", mesaTop: "Ninguna", pagoTop: "Ninguno", deudaFiada: 0 }; 
-      
+      let vDia = 0, pDia = 0;
+      let intelDia = { topPlato: "Ninguno", bottomPlato: "Ninguno", mesaTop: "Ninguna", pagoTop: "Ninguno", deudaFiada: 0 };
+
       if (diaReporte && diaReporte.length > 0) {
         vDia = diaReporte.reduce((acc, order) => acc + (order.total || 0), 0);
         pDia = diaReporte.length;
-        intelDia = analizarInteligenciaNegocio(diaReporte); 
+        intelDia = analizarInteligenciaNegocio(diaReporte);
       }
       ventasSemana += vDia;
       pedidosSemana += pDia;
       fiadoSemana += intelDia.deudaFiada;
-      
+
       desgloseDias += `\n    - ${nombresDias[index]}: S/. ${vDia.toFixed(2)} (${pDia} pedidos) | Top: ${intelDia.topPlato} | Menos: ${intelDia.bottomPlato} | Mesa Fav: ${intelDia.mesaTop} | Pago Fav: ${intelDia.pagoTop} | Fiado: S/. ${intelDia.deudaFiada.toFixed(2)}`;
     });
 
@@ -309,7 +332,7 @@ async function enviarMensajeAI(mensajeOculto = null) {
       ventasAyer = reporteAyer.reduce((acc, order) => acc + (order.total || 0), 0);
       pedidosAyer = reporteAyer.length;
       analisisAyer = analizarInteligenciaNegocio(reporteAyer);
-      
+
       const listaLlevarAyer = [];
       reporteAyer.forEach(order => {
         if (order.table && order.table.toLowerCase().includes('llevar')) {
@@ -353,11 +376,7 @@ async function enviarMensajeAI(mensajeOculto = null) {
   try {
     const data = await $fetch('/api/ai/chat', {
       method: 'POST',
-      body: { 
-        history: apiHistory.value.slice(-6),
-        resumenDia: resumenHoy, 
-        datosHistoricos: memoriaAyerYsemana 
-      }
+      body: { history: apiHistory.value.slice(-6), resumenDia: resumenHoy, datosHistoricos: memoriaAyerYsemana }
     });
 
     chatHistory.value.push({ role: 'bot', text: data.reply });
@@ -369,10 +388,8 @@ async function enviarMensajeAI(mensajeOculto = null) {
     chatHistory.value.push({ role: 'bot', text: "Uy coquita, se me fue la señal contando los fiados. ¡Reintenta!" });
   } finally {
     isLoadingAI.value = false
-    await nextTick() 
-    if (chatInputRef.value) {
-      chatInputRef.value.focus() 
-    }
+    await nextTick()
+    if (chatInputRef.value) { chatInputRef.value.focus() }
   }
 }
 
@@ -390,26 +407,27 @@ function iniciarAnalisis() {
   </div>
 
   <div v-else-if="store.user" class="min-h-screen bg-gray-50 p-4 md:p-6 relative">
-    
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-      
+
       <div class="lg:col-span-2 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-5 md:p-8 rounded-2xl border border-gray-200 shadow-sm">
         <div class="flex items-center gap-4 md:gap-5 w-full sm:w-auto">
-          <img
-            :src="`https://ui-avatars.com/api/?name=${encodeURIComponent(store.user.name)}&background=f97316&color=fff`"
-            class="w-14 h-14 md:w-16 md:h-16 rounded-full border-2 border-orange-200 shadow-sm"
-            alt="Avatar"
-          />
+          <img :src="`https://ui-avatars.com/api/?name=${encodeURIComponent(store.user.name)}&background=f97316&color=fff`" class="w-14 h-14 md:w-16 md:h-16 rounded-full border-2 border-orange-200 shadow-sm" alt="Avatar" />
           <div>
             <h1 class="text-2xl md:text-3xl font-bold text-slate-800 flex items-center gap-2">
               Hola, {{ store.user.name }}
             </h1>
             <p class="text-slate-500 text-xs md:text-sm font-medium mt-1 flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M15.042 21.672 13.684 16.6m0 0-2.51 2.225.569-9.47 5.227 7.917-3.286-.672ZM12 2.25V4.5m5.834.166-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243-1.59-1.59" /></svg>
-              {{ roleNames[store.user.role] }}
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 text-orange-500">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.042 21.672 13.684 16.6m0 0-2.51 2.225.569-9.47 5.227 7.917-3.286-.672ZM12 2.25V4.5m5.834.166-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243-1.59-1.59" />
+              </svg>
+              {{ roleNames[store.user.role?.toLowerCase()] || roleNames[store.user.role] }}
             </p>
           </div>
         </div>
+        <button @click="isArqueoModalOpen = true" class="bg-slate-900 text-white font-bold px-5 py-2.5 rounded-xl shadow-lg hover:bg-slate-800 transition-all active:scale-95 text-sm">
+          Cerrar Turno
+        </button>
       </div>
 
       <div class="bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-gray-200 flex flex-col justify-center items-center relative min-h-[100px] md:min-h-[120px]">
@@ -431,50 +449,32 @@ function iniciarAnalisis() {
     </div>
 
     <div class="flex gap-4 mb-6 md:mb-8 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
-      <NuxtLink
-        v-if="['admin', 'glorianora'].includes(store.user?.role)"
-        to="/inventory"
-        class="snap-center flex-1 px-5 md:px-6 py-3 md:py-4 bg-white hover:bg-gray-50 text-slate-700 border border-gray-200 rounded-xl font-bold transition flex items-center justify-center gap-3 shadow-sm group min-w-[160px] md:min-w-[180px]"
-      >
+      <NuxtLink v-if="['admin', 'glorianora'].includes(store.user?.role)" to="/inventory" class="snap-center flex-1 px-5 md:px-6 py-3 md:py-4 bg-white hover:bg-gray-50 text-slate-700 border border-gray-200 rounded-xl font-bold transition flex items-center justify-center gap-3 shadow-sm group min-w-[160px] md:min-w-[180px]">
         <div class="bg-blue-100 text-blue-600 p-2 rounded-lg group-hover:scale-110 transition">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg>
-        </div>
-        Inventario
+        </div> Inventario
       </NuxtLink>
 
-      <NuxtLink
-        v-if="['admin', 'glorianora', 'mesero'].includes(store.user?.role)"
-        to="/pos"
-        class="snap-center flex-1 px-5 md:px-6 py-3 md:py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold transition flex items-center justify-center gap-3 shadow-lg shadow-orange-500/20 group min-w-[160px] md:min-w-[180px]"
-      >
+      <NuxtLink v-if="['admin', 'glorianora', 'mesero'].includes(store.user?.role)" to="/pos" class="snap-center flex-1 px-5 md:px-6 py-3 md:py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold transition flex items-center justify-center gap-3 shadow-lg shadow-orange-500/20 group min-w-[160px] md:min-w-[180px]">
         <div class="bg-white/20 p-2 rounded-lg group-hover:scale-110 transition text-white">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" /></svg>
-        </div>
-        Vender
+        </div> Vender
       </NuxtLink>
 
-      <NuxtLink
-        v-if="['admin', 'glorianora', 'cocina'].includes(store.user?.role)"
-        to="/kitchen"
-        class="snap-center flex-1 px-5 md:px-6 py-3 md:py-4 bg-white hover:bg-gray-50 text-slate-700 border border-gray-200 rounded-xl font-bold transition flex items-center justify-center gap-3 shadow-sm group min-w-[160px] md:min-w-[180px]"
-      >
+      <NuxtLink v-if="['admin', 'glorianora', 'cocina'].includes(store.user?.role)" to="/kitchen" class="snap-center flex-1 px-5 md:px-6 py-3 md:py-4 bg-white hover:bg-gray-50 text-slate-700 border border-gray-200 rounded-xl font-bold transition flex items-center justify-center gap-3 shadow-sm group min-w-[160px] md:min-w-[180px]">
         <div class="bg-red-100 text-red-600 p-2 rounded-lg group-hover:scale-110 transition">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 18a3.75 3.75 0 0 0 .495-7.468 5.99 5.99 0 0 0-1.925 3.547 5.975 5.975 0 0 1-2.133-1.001A3.75 3.75 0 0 0 12 18Z" /></svg>
-        </div>
-        Cocina
+        </div> Cocina
       </NuxtLink>
     </div>
 
     <div v-if="['admin', 'glorianora'].includes(store.user?.role)" class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-      
+
       <div class="xl:col-span-2 flex flex-col gap-4 md:gap-6">
-        
+
         <div class="bg-white p-5 md:p-8 rounded-2xl border transition-colors duration-500 shadow-sm relative overflow-hidden" :class="isGoalReached ? 'border-emerald-200' : 'border-gray-200'">
           <div class="absolute top-0 right-0 p-4">
-            <span
-              :class="store.isWeekend ? 'bg-purple-100 text-purple-600 border border-purple-200' : 'bg-blue-100 text-blue-600 border border-blue-200'"
-              class="text-[9px] md:text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full flex items-center gap-1.5"
-            >
+            <span :class="store.isWeekend ? 'bg-purple-100 text-purple-600 border border-purple-200' : 'bg-blue-100 text-blue-600 border border-blue-200'" class="text-[9px] md:text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full flex items-center gap-1.5">
               <svg v-if="store.isWeekend" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3"><path fill-rule="evenodd" d="M13.5 4.938a7 7 0 1 1-9.006 1.737c.202-.257.59-.218.793.039.278.352.594.672.943.954.332.269.786-.049.773-.476a5.977 5.977 0 0 1 .572-2.759 6.026 6.026 0 0 1 2.486-2.665c.247-.14.55-.016.677.238A6.967 6.967 0 0 0 13.5 4.938ZM14 12a4 4 0 0 1-4 4c-1.913 0-3.52-1.398-3.91-3.182-.093-.429.44-.643.814-.413a4.043 4.043 0 0 0 1.601.564c.303.038.531-.24.51-.544a5.975 5.975 0 0 1 1.315-4.192.447.447 0 0 1 .431-.16A4.001 4.001 0 0 1 14 12Z" clip-rule="evenodd" /></svg>
               <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3"><path d="M10 2a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 10 2ZM10 15a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 10 15ZM10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM15.657 5.404a.75.75 0 1 0-1.06-1.06l-1.061 1.06a.75.75 0 0 0 1.06 1.06l1.06-1.06ZM6.464 14.596a.75.75 0 1 0-1.06-1.06l-1.06 1.06a.75.75 0 0 0 1.06 1.06l1.06-1.06ZM18 10a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 18 10ZM5 10a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 5 10ZM14.596 15.657a.75.75 0 0 0 1.06-1.06l-1.06-1.061a.75.75 0 1 0-1.06 1.06l1.06 1.06ZM5.404 6.464a.75.75 0 0 0 1.06-1.06l-1.06-1.06a.75.75 0 1 0-1.06 1.06l1.06 1.06Z" /></svg>
               <span class="hidden sm:inline">{{ store.isWeekend ? "Fin de Semana" : "Día Normal" }}</span>
@@ -483,21 +483,14 @@ function iniciarAnalisis() {
 
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mt-6 md:mt-0">
             <div class="flex-1">
-              
               <div class="flex items-center justify-between mb-4">
-                <span class="text-xs font-black uppercase tracking-widest" :class="isGoalReached ? 'text-emerald-500' : 'text-slate-400'">
-                  Progreso del Día
-                </span>
-                <button 
-                  @click="openGoalModal" 
-                  class="flex items-center gap-2 text-xs md:text-sm font-black text-slate-600 hover:text-slate-900 transition bg-slate-100 hover:bg-slate-200 px-3 md:px-4 py-2 rounded-xl border border-slate-300 shadow-sm"
-                  title="Editar Meta"
-                >
+                <span class="text-xs font-black uppercase tracking-widest" :class="isGoalReached ? 'text-emerald-500' : 'text-slate-400'">Progreso del Día</span>
+                <button @click="openGoalModal" class="flex items-center gap-2 text-xs md:text-sm font-black text-slate-600 hover:text-slate-900 transition bg-slate-100 hover:bg-slate-200 px-3 md:px-4 py-2 rounded-xl border border-slate-300 shadow-sm" title="Editar Meta">
                   Meta: S/. {{ store.dailyGoal.toFixed(2) }}
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 md:w-4 md:h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" /></svg>
                 </button>
               </div>
-              
+
               <div class="flex items-end gap-2 mb-4">
                 <span class="text-4xl md:text-6xl font-black transition-colors duration-500" :class="isGoalReached ? 'text-emerald-600' : 'text-slate-800'">
                   S/. {{ (store.stats?.totalVentas || 0).toFixed(2) }}
@@ -505,19 +498,12 @@ function iniciarAnalisis() {
               </div>
 
               <div class="w-full bg-slate-100 h-3 md:h-4 rounded-full overflow-hidden flex relative border border-slate-200/50">
-                <div
-                  class="transition-all duration-1000 ease-out h-full rounded-full"
-                  :class="isGoalReached ? 'bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-gradient-to-r from-orange-400 to-orange-500'"
-                  :style="{ width: goalProgress + '%' }"
-                ></div>
+                <div class="transition-all duration-1000 ease-out h-full rounded-full" :class="isGoalReached ? 'bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-gradient-to-r from-orange-400 to-orange-500'" :style="{ width: goalProgress + '%' }"></div>
               </div>
             </div>
 
-            <div class="flex flex-col items-center justify-center min-w-[140px] md:min-w-[160px] px-6 py-4 md:py-5 rounded-2xl border transition-colors duration-500"
-                 :class="isGoalReached ? 'bg-emerald-50 border-emerald-100' : 'bg-orange-50 border-orange-100'">
-              <span class="text-3xl md:text-4xl font-black mb-1" :class="isGoalReached ? 'text-emerald-600' : 'text-orange-600'">
-                {{ goalProgress }}%
-              </span>
+            <div class="flex flex-col items-center justify-center min-w-[140px] md:min-w-[160px] px-6 py-4 md:py-5 rounded-2xl border transition-colors duration-500" :class="isGoalReached ? 'bg-emerald-50 border-emerald-100' : 'bg-orange-50 border-orange-100'">
+              <span class="text-3xl md:text-4xl font-black mb-1" :class="isGoalReached ? 'text-emerald-600' : 'text-orange-600'">{{ goalProgress }}%</span>
               <span class="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-center" :class="isGoalReached ? 'text-emerald-500' : 'text-orange-400'">
                 {{ isGoalReached ? 'Completado' : 'De la meta' }}
               </span>
@@ -542,7 +528,6 @@ function iniciarAnalisis() {
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          
           <div class="bg-white p-5 md:p-6 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden group h-max">
             <div class="absolute -right-4 -top-4 w-24 h-24 bg-emerald-50 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
             <div class="relative z-10">
@@ -581,7 +566,6 @@ function iniciarAnalisis() {
               <p class="text-3xl md:text-4xl font-black text-slate-800">S/. {{ (store.stats?.totalPorCobrar || 0).toFixed(2) }}</p>
             </div>
           </div>
-
         </div>
       </div>
 
@@ -589,9 +573,8 @@ function iniciarAnalisis() {
         <div class="bg-gradient-to-br from-indigo-900 to-slate-900 p-1 rounded-3xl shadow-xl overflow-hidden relative group h-full flex flex-col">
           <div class="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-indigo-500/20 blur-3xl rounded-full pointer-events-none"></div>
           <div class="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-fuchsia-500/20 blur-3xl rounded-full pointer-events-none"></div>
-          
+
           <div class="relative bg-slate-900/60 backdrop-blur-xl p-5 md:p-6 rounded-[22px] flex flex-col h-full z-10">
-            
             <div class="flex items-center gap-3 mb-4 pb-4 border-b border-white/10 shrink-0">
               <div class="bg-indigo-500/20 p-2 md:p-2.5 rounded-xl border border-indigo-400/30 text-indigo-300">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09l2.846.813-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" /></svg>
@@ -605,33 +588,19 @@ function iniciarAnalisis() {
             </div>
 
             <div ref="chatContainer" class="flex-1 overflow-y-auto pr-2 mb-4 flex flex-col gap-4 custom-scroll scrollbar-hide">
-              
               <div v-if="!isChatLoaded" class="h-full flex items-center justify-center">
                 <span class="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-400 rounded-full animate-spin"></span>
               </div>
-
               <div v-else-if="!isChatActive" class="h-full flex flex-col items-center justify-center text-center">
                 <p class="text-indigo-200/50 mb-6 max-w-sm text-xs md:text-sm">Inicia el análisis para descubrir patrones de venta o pregúntame qué cocinar para mañana.</p>
-                <button 
-                  @click="iniciarAnalisis" 
-                  class="bg-indigo-500 hover:bg-indigo-400 text-white px-5 md:px-6 py-2.5 md:py-3 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(99,102,241,0.4)] flex items-center gap-2 text-sm md:text-base"
-                >
+                <button @click="iniciarAnalisis" class="bg-indigo-500 hover:bg-indigo-400 text-white px-5 md:px-6 py-2.5 md:py-3 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(99,102,241,0.4)] flex items-center gap-2 text-sm md:text-base">
                   Generar Resumen
                 </button>
               </div>
-
               <template v-else>
-                <div 
-                  v-for="(msg, index) in chatHistory" 
-                  :key="index"
-                  class="max-w-[90%] md:max-w-[85%] rounded-2xl p-3 md:p-4 text-xs md:text-sm font-medium leading-relaxed"
-                  :class="msg.role === 'user' 
-                    ? 'bg-indigo-500 text-white self-end rounded-tr-sm' 
-                    : 'bg-white/10 text-indigo-50 self-start rounded-tl-sm border border-white/5'"
-                >
+                <div v-for="(msg, index) in chatHistory" :key="index" class="max-w-[90%] md:max-w-[85%] rounded-2xl p-3 md:p-4 text-xs md:text-sm font-medium leading-relaxed" :class="msg.role === 'user' ? 'bg-indigo-500 text-white self-end rounded-tr-sm' : 'bg-white/10 text-indigo-50 self-start rounded-tl-sm border border-white/5'">
                   <div class="whitespace-pre-line">{{ msg.text }}</div>
                 </div>
-                
                 <div v-if="isLoadingAI" class="bg-white/10 border border-white/5 self-start rounded-2xl rounded-tl-sm p-3 w-16 flex justify-center gap-1">
                   <span class="w-1.5 h-1.5 bg-indigo-300 rounded-full animate-bounce"></span>
                   <span class="w-1.5 h-1.5 bg-indigo-300 rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
@@ -641,24 +610,11 @@ function iniciarAnalisis() {
             </div>
 
             <div v-if="isChatActive" class="relative mt-auto shrink-0">
-              <input 
-                ref="chatInputRef"
-                v-model="userMessage" 
-                @keyup.enter="enviarMensajeAI()"
-                type="text" 
-                placeholder="Pregúntale a KausaBot..." 
-                class="w-full bg-black/30 border border-white/10 rounded-xl py-2.5 md:py-3 pl-4 pr-12 text-sm md:text-base text-white placeholder-indigo-200/40 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition"
-                :disabled="isLoadingAI"
-              >
-              <button 
-                @click="enviarMensajeAI()"
-                :disabled="!userMessage || isLoadingAI"
-                class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 md:p-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-400 disabled:opacity-50 disabled:bg-slate-700 transition"
-              >
+              <input ref="chatInputRef" v-model="userMessage" @keyup.enter="enviarMensajeAI()" type="text" placeholder="Pregúntale a KausaBot..." class="w-full bg-black/30 border border-white/10 rounded-xl py-2.5 md:py-3 pl-4 pr-12 text-sm md:text-base text-white placeholder-indigo-200/40 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition" :disabled="isLoadingAI">
+              <button @click="enviarMensajeAI()" :disabled="!userMessage || isLoadingAI" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 md:p-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-400 disabled:opacity-50 disabled:bg-slate-700 transition">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" /></svg>
               </button>
             </div>
-
           </div>
         </div>
       </div>
@@ -680,54 +636,54 @@ function iniciarAnalisis() {
         </div>
         <h3 class="text-xl md:text-2xl font-black text-slate-800 mb-2">Editar Meta Diaria</h3>
         <p class="text-slate-500 mb-6 text-xs md:text-sm">Define la expectativa de ingresos para motivar al equipo hoy.</p>
-        
         <div class="mb-6 relative">
           <span class="absolute left-4 top-3.5 md:top-4 font-black text-slate-400">S/.</span>
-          <input 
-            v-model="tempGoal" 
-            type="number" 
-            step="10"
-            class="w-full bg-gray-50 text-slate-800 font-black text-xl md:text-2xl pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
-          >
+          <input v-model="tempGoal" type="number" step="10" class="w-full bg-gray-50 text-slate-800 font-black text-xl md:text-2xl pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition">
         </div>
-
         <div class="flex gap-3">
-          <button @click="showGoalModal = false" class="flex-1 bg-white border border-gray-300 text-slate-600 font-bold py-2.5 md:py-3 rounded-xl hover:bg-gray-50 transition shadow-sm">
-            Cancelar
-          </button>
-          <button @click="saveNewGoal" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 md:py-3 rounded-xl shadow-md transition active:scale-95 flex items-center justify-center">
-            Guardar
-          </button>
+          <button @click="showGoalModal = false" class="flex-1 bg-white border border-gray-300 text-slate-600 font-bold py-2.5 md:py-3 rounded-xl hover:bg-gray-50 transition shadow-sm">Cancelar</button>
+          <button @click="saveNewGoal" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 md:py-3 rounded-xl shadow-md transition active:scale-95 flex items-center justify-center">Guardar</button>
         </div>
       </div>
     </div>
 
   </div>
+
+  <CierreCajaModal :isOpen="isArqueoModalOpen" :expectedCash="cajaEsperada" :expectedYape="yapeEsperado" :expectedPorCobrar="porCobrarEsperado" @close="isArqueoModalOpen = false" @confirm="procesarCierre" />
+
+  <div v-if="isClosingDb" class="fixed inset-0 z-[150] flex flex-col items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+     <div class="w-16 h-16 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mb-4"></div>
+     <p class="text-white font-black tracking-widest uppercase text-sm animate-pulse">Asegurando caja...</p>
+  </div>
+
+  <div v-if="showSuccessModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="showSuccessModal = false"></div>
+    <div class="relative bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl transform transition-all">
+      <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-10 h-10 text-emerald-500"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+      </div>
+      
+      <h3 class="text-2xl font-bold text-slate-800 mb-2">¡Turno Cerrado!</h3>
+      <p class="text-slate-500 text-sm mb-6">El arqueo se guardó correctamente y las ventas del día han sido reseteadas.</p>
+
+      <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mb-6 shadow-inner">
+         <p class="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-1">Nuevo PIN (Turno {{ turnoGenerado }})</p>
+         <p class="text-4xl font-black text-indigo-600 tracking-widest font-mono">{{ pinGenerado }}</p>
+      </div>
+
+      <button @click="showSuccessModal = false" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-emerald-500/30 transition-all active:scale-95 text-lg">
+        Aceptar
+      </button>
+    </div>
+  </div>
+
 </template>
 
 <style scoped>
-/* Ocultar barra de scroll para el carrusel de botones (App Feel) */
-.scrollbar-hide::-webkit-scrollbar {
-    display: none;
-}
-.scrollbar-hide {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
-}
-
-/* Scroll custom para el chat */
-.custom-scroll::-webkit-scrollbar {
-    width: 4px;
-}
-.custom-scroll::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.02);
-    border-radius: 10px;
-}
-.custom-scroll::-webkit-scrollbar-thumb {
-    background: rgba(99, 102, 241, 0.2); 
-    border-radius: 10px;
-}
-.custom-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgba(99, 102, 241, 0.5);
-}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.custom-scroll::-webkit-scrollbar { width: 4px; }
+.custom-scroll::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); border-radius: 10px; }
+.custom-scroll::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.2); border-radius: 10px; }
+.custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.5); }
 </style>
