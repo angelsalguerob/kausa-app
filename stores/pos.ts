@@ -25,7 +25,7 @@ export interface Order {
   items: CartItem[]
   total: number
   date: Date | string
-  status: 'Pendiente' | 'Listo'
+  status: 'Pendiente' | 'Listo' | 'Entregado' // 🚀 NUEVO: Agregamos el estado 'Entregado' al tipo
   table?: string 
   description?: string
 }
@@ -57,6 +57,8 @@ export const usePosStore = defineStore('pos', {
     isWeekend: false,
     stats: { 
       totalVentas: 0,
+      totalVentasDia: 0,
+      ventasPorTurno: [] as any[],
       totalPagado: 0,
       totalPorCobrar: 0,
       count: 0, 
@@ -68,9 +70,9 @@ export const usePosStore = defineStore('pos', {
       kitchenCount: 0,
       hasPendingPayments: false
     },
-    turnoActual: process.client ? (Number(localStorage.getItem('kausa_turno_actual')) || 1) : 1,
-    // 🚀 NUEVO: Guardamos el PIN en memoria para que Ajustes pueda leerlo
-    activePin: process.client ? (localStorage.getItem('kausa_active_pin') || '0000') : '0000'
+    turnoActual: 1,
+    activePin: '0000',
+    lastCloseTime: 0 
   }),
 
   getters: {
@@ -148,71 +150,89 @@ export const usePosStore = defineStore('pos', {
     },
     
     // --- ESTADÍSTICAS Y ÓRDENES ---
-    
-    // 🚀 NUEVO: Helper para generar un PIN aleatorio de 4 dígitos
     generarNuevoPin() {
       return Math.floor(1000 + Math.random() * 9000).toString()
     },
 
-    // 🚀 NUEVO: Sincronizador de PIN con el servidor
-    async syncPinWithDatabase() {
+    async syncSettingsWithDatabase() {
       try {
-        const data = await $fetch<any>('/api/settings/active-pin')
-        if (data && data.pin) {
-          // Si el servidor dice '0000' (la base de datos está vacía por ser la primera vez)
-          // y el usuario es Admin, forzamos la creación de un PIN real.
-          if (data.pin === '0000' && ['admin', 'glorianora'].includes(this.user?.role || '')) {
-            const nuevoPin = this.generarNuevoPin()
-            this.activePin = nuevoPin
-            localStorage.setItem('kausa_active_pin', nuevoPin)
-            await $fetch('/api/settings/update-pin', { method: 'POST', body: { pin: nuevoPin } })
-          } else {
-            // Si el servidor tiene un PIN real, actualizamos la pantalla de Gloria
-            this.activePin = data.pin
-            localStorage.setItem('kausa_active_pin', data.pin)
-          }
+        const settings = await $fetch<any[]>(`/api/settings/all?_t=${Date.now()}`).catch(() => [])
+        
+        let dbPin = '0000'
+        let dbTurno = 1
+        let dbLastClose = 0
+
+        settings.forEach(s => {
+          if (s.key === 'active_pin') dbPin = s.value
+          if (s.key === 'current_turno') dbTurno = Number(s.value)
+          if (s.key === 'last_close_time') dbLastClose = new Date(s.value).getTime()
+        })
+
+        const hoy = new Date().toDateString()
+        const ultimoCierre = dbLastClose === 0 ? '' : new Date(dbLastClose).toDateString()
+
+        if (dbPin === '0000' || (dbLastClose !== 0 && hoy !== ultimoCierre)) {
+          const nuevoPin = this.generarNuevoPin()
+          this.activePin = nuevoPin
+          this.turnoActual = 1 
+          this.lastCloseTime = Date.now() 
+          
+          await $fetch('/api/settings/update-multiple', { 
+            method: 'POST', 
+            body: { 
+              settings: [
+                { key: 'active_pin', value: nuevoPin },
+                { key: 'current_turno', value: '1' },
+                { key: 'last_close_time', value: new Date().toISOString() } 
+              ] 
+            } 
+          })
+          console.log("🌅 Nuevo día detectado: Turno reiniciado a 1")
+        } else {
+          this.activePin = dbPin
+          this.turnoActual = dbTurno
+          this.lastCloseTime = dbLastClose
         }
+        
       } catch (error) {
-        console.error("Error sincronizando PIN con el servidor", error)
+        console.error("Error sincronizando ajustes con BD", error)
       }
     },
 
-    async loadStats() {
+    async loadStats(skipSync = false) {
       try {
-        await this.syncPinWithDatabase()
-        const statsData = await $fetch<any>('/api/orders/stats')
+        if (!skipSync) {
+          await this.syncSettingsWithDatabase()
+        }
+        
+        const statsData = await $fetch<any>(`/api/orders/stats?_t=${Date.now()}`).catch(() => null)
         const hoy = new Date()
         const dateString = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
         
-        const ordersData = await $fetch<any[]>(`/api/orders/by-date?date=${dateString}`).catch(() => [])
+        const ordersData = await $fetch<any[]>(`/api/orders/by-date?date=${dateString}&_t=${Date.now()}`).catch(() => [])
 
-        const lastCloseStr = localStorage.getItem('kausa_last_close')
-        let lastCloseTime = 0
-        
-        if (lastCloseStr) {
-          const closeDate = new Date(lastCloseStr)
-          
-          if (closeDate.toDateString() === hoy.toDateString()) {
-            lastCloseTime = closeDate.getTime()
-          } else {
-            // 🚀 ES UN NUEVO DÍA: Reseteamos turno a 1
-            this.turnoActual = 1
-            localStorage.setItem('kausa_turno_actual', '1')
+        let ventasDiaCompleto = 0
+        let mapaTurnos: Record<number, number> = {}
 
-            // 🚀 SEGURIDAD: Destruimos el PIN de ayer y generamos uno nuevo al abrir el día
-            const nuevoPin = this.generarNuevoPin()
-            this.activePin = nuevoPin
-            localStorage.setItem('kausa_active_pin', nuevoPin)
-            
-            // Lo guardamos silenciosamente en la BD
-            $fetch('/api/settings/update-pin', {
-              method: 'POST',
-              body: { pin: nuevoPin }
-            }).catch(() => {})
-          }
+        ordersData.forEach(o => {
+          const monto = Number(o.total)
+          ventasDiaCompleto += monto
+          const t = o.turno || 1
+          if (!mapaTurnos[t]) mapaTurnos[t] = 0
+          mapaTurnos[t] += monto
+        })
+
+        if (mapaTurnos[this.turnoActual] === undefined) {
+          mapaTurnos[this.turnoActual] = 0
         }
 
-        const ordenesDelTurno = ordersData.filter(o => new Date(o.createdAt).getTime() > lastCloseTime)
+        this.stats.totalVentasDia = ventasDiaCompleto
+        this.stats.ventasPorTurno = Object.keys(mapaTurnos).map(key => ({
+          turno: Number(key),
+          total: mapaTurnos[Number(key)]
+        })).sort((a, b) => a.turno - b.turno)
+        
+        const ordenesDelTurno = ordersData.filter(o => new Date(o.createdAt).getTime() > this.lastCloseTime)
 
         let efectivo = 0
         let digital = 0
@@ -225,20 +245,18 @@ export const usePosStore = defineStore('pos', {
 
           const status = order.paymentStatus === 'Pagado' ? 'Efectivo' : order.paymentStatus
 
-          if (status === 'Efectivo') {
-            efectivo += monto
-          } else if (status === 'Yape / Plin' || status === 'Tarjeta') {
-            digital += monto
-          } else {
-            porCobrar += monto
-          }
+          if (status === 'Efectivo') efectivo += monto
+          else if (status === 'Yape / Plin' || status === 'Tarjeta') digital += monto
+          else porCobrar += monto
         })
 
         this.stats.totalVentas = ventasBrutasTurno
         this.stats.totalPagado = efectivo + digital
-        this.stats.count = ordenesDelTurno.length
+        this.stats.count = ordersData.filter(o => o.status !== 'Cancelado' && o.status !== 'Rechazado').length
         
-        this.stats.recent = (statsData.recent || []).filter((o: any) => new Date(o.createdAt).getTime() > lastCloseTime)
+        if (statsData) {
+          this.stats.recent = (statsData.recent || []).filter((o: any) => new Date(o.createdAt).getTime() > this.lastCloseTime)
+        }
 
         this.stats.totalEfectivo = efectivo
         this.stats.totalDigital = digital
@@ -246,35 +264,37 @@ export const usePosStore = defineStore('pos', {
         
         this.globalAlerts.hasPendingPayments = this.stats.totalPorCobrar > 0
       } catch (error) { 
-        console.error('Error cargando estadísticas y ventas del día', error) 
+        console.error('Error cargando estadísticas', error) 
       }
     },
 
     async resetearVentasDelDia() {
-      const ahora = new Date()
-      localStorage.setItem('kausa_last_close', ahora.toISOString())
-
-      this.turnoActual++
-      localStorage.setItem('kausa_turno_actual', this.turnoActual.toString())
-
-      // 🚀 SEGURIDAD: Generamos nuevo PIN para el siguiente turno (Cierre de Caja)
+      const nuevoTurno = this.turnoActual + 1
       const nuevoPin = this.generarNuevoPin()
-      this.activePin = nuevoPin
-      localStorage.setItem('kausa_active_pin', nuevoPin)
+      const horaCierre = new Date().toISOString()
 
       try {
-        await $fetch('/api/settings/update-pin', {
+        await $fetch('/api/settings/update-multiple', {
           method: 'POST',
-          body: { pin: nuevoPin }
+          body: {
+            settings: [
+              { key: 'active_pin', value: nuevoPin },
+              { key: 'current_turno', value: String(nuevoTurno) },
+              { key: 'last_close_time', value: horaCierre }
+            ]
+          }
         })
       } catch (e) {
-        console.error("Error guardando el nuevo PIN en BD", e)
+        console.error("Error guardando el Cierre Global en BD", e)
       }
 
-      await this.loadStats()
-      console.log("Caja cerrada. Pasando al Turno:", this.turnoActual)
+      this.turnoActual = nuevoTurno
+      this.activePin = nuevoPin
+      this.lastCloseTime = new Date(horaCierre).getTime()
       
-      // Le mostramos a Gloria el PIN del nuevo turno para que se lo dé al equipo
+      await this.loadStats(true) 
+      console.log("Cierre Global exitoso. Pasando al Turno:", this.turnoActual)
+      
       return { turno: this.turnoActual, pin: nuevoPin }
     },
 
@@ -286,6 +306,22 @@ export const usePosStore = defineStore('pos', {
 
     apagarAlertaPagos() {
       this.globalAlerts.hasPendingPayments = false
+    },
+
+    // 🚀 NUEVA ACCIÓN: Para que el mesero confirme la entrega física
+    async marcarComoEntregado(orderId: number | string) {
+      try {
+        await $fetch('/api/orders/update-status', {
+          method: 'POST',
+          body: { orderId, newStatus: 'Entregado' }
+        })
+        
+        // Refrescamos las estadísticas (y por ende la lista de recientes/órdenes)
+        await this.loadStats() 
+        console.log(`Orden ${orderId} marcada como entregada`)
+      } catch (error) {
+        console.error("Error al marcar entrega", error)
+      }
     },
 
     async checkout(tableName: string = 'Caja') {
@@ -302,7 +338,7 @@ export const usePosStore = defineStore('pos', {
         items: itemsCopia,
         total: totalVenta,
         date: new Date(),
-        status: 'Listo',
+        status: 'Pendiente', // 🚀 CAMBIO: Nace como Pendiente en lugar de Listo
         table: tableName
       }
       this.orders.unshift(newOrder)
@@ -317,7 +353,8 @@ export const usePosStore = defineStore('pos', {
           total: totalVenta, 
           description: descripcionPedido, 
           table: tableName,
-          turno: this.turnoActual 
+          turno: this.turnoActual,
+          status: 'Pendiente' // 🚀 CAMBIO: Aseguramos que se guarde como Pendiente en BD
         }
       }).then(savedOrder => {
         newOrder.id = '#' + (savedOrder.dailyTicket || savedOrder.id)
@@ -348,15 +385,21 @@ export const usePosStore = defineStore('pos', {
         if (item.quantity <= 0) this.removeFromCart(productId)
       }
     },
-    clearCart() { this.cart = [] },
+    clearCart() { 
+      this.cart = [] 
+    },
 
     // --- METAS ---
     initDailyGoal() {
       const day = new Date().getDay()
       this.isWeekend = (day === 0 || day === 5 || day === 6)
-      if (this.dailyGoal === 0) { this.dailyGoal = this.isWeekend ? 1500 : 600 }
+      if (this.dailyGoal === 0) { 
+        this.dailyGoal = this.isWeekend ? 1500 : 600 
+      }
     },
-    updateGoal(newGoal: number) { this.dailyGoal = newGoal },
+    updateGoal(newGoal: number) { 
+      this.dailyGoal = newGoal 
+    },
 
     // --- MESAS ---
     async loadTables() {

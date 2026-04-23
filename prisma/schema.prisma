@@ -55,7 +55,7 @@ model Table {
 }
 
 model SystemSetting {
-  id    Int    @id @default(1)
+  id    Int    @id @default(autoincrement())
   key   String @unique // Usaremos "active_pin"
   value String
 }

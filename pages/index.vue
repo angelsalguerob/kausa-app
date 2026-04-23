@@ -161,19 +161,22 @@ const roleNames = {
 
 const goalProgress = computed(() => {
   if (store.dailyGoal <= 0) return 0
-  const ventas = store.stats?.totalVentas || 0
+  // 🚀 CAMBIO: Usar totalVentasDia
+  const ventas = store.stats?.totalVentasDia || 0 
   const percentage = (ventas / store.dailyGoal) * 100
   return Math.min(Math.floor(percentage), 100)
 })
 
 const isGoalReached = computed(() => {
-  const ventas = store.stats?.totalVentas || 0
+  // 🚀 CAMBIO: Usar totalVentasDia
+  const ventas = store.stats?.totalVentasDia || 0
   return ventas >= store.dailyGoal && store.dailyGoal > 0
 })
 
 const surplusAmount = computed(() => {
   if (!isGoalReached.value) return 0
-  const ventas = store.stats?.totalVentas || 0
+  // 🚀 CAMBIO: Usar totalVentasDia
+  const ventas = store.stats?.totalVentasDia || 0
   return ventas - store.dailyGoal
 })
 
@@ -482,33 +485,46 @@ function iniciarAnalisis() {
           </div>
 
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mt-6 md:mt-0">
-            <div class="flex-1">
-              <div class="flex items-center justify-between mb-4">
-                <span class="text-xs font-black uppercase tracking-widest" :class="isGoalReached ? 'text-emerald-500' : 'text-slate-400'">Progreso del Día</span>
-                <button @click="openGoalModal" class="flex items-center gap-2 text-xs md:text-sm font-black text-slate-600 hover:text-slate-900 transition bg-slate-100 hover:bg-slate-200 px-3 md:px-4 py-2 rounded-xl border border-slate-300 shadow-sm" title="Editar Meta">
-                  Meta: S/. {{ store.dailyGoal.toFixed(2) }}
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 md:w-4 md:h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" /></svg>
-                </button>
-              </div>
+  <div class="flex-1">
+    <div class="flex items-center justify-between mb-4">
+      <span class="text-xs font-black uppercase tracking-widest" :class="isGoalReached ? 'text-emerald-500' : 'text-slate-400'">Progreso del Día</span>
+      <button @click="openGoalModal" class="flex items-center gap-2 text-xs md:text-sm font-black text-slate-600 hover:text-slate-900 transition bg-slate-100 hover:bg-slate-200 px-3 md:px-4 py-2 rounded-xl border border-slate-300 shadow-sm" title="Editar Meta">
+        Meta: S/. {{ store.dailyGoal.toFixed(2) }}
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 md:w-4 md:h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" /></svg>
+      </button>
+    </div>
 
-              <div class="flex items-end gap-2 mb-4">
-                <span class="text-4xl md:text-6xl font-black transition-colors duration-500" :class="isGoalReached ? 'text-emerald-600' : 'text-slate-800'">
-                  S/. {{ (store.stats?.totalVentas || 0).toFixed(2) }}
-                </span>
-              </div>
+    <div class="flex items-end gap-2 mb-4">
+      <span class="text-4xl md:text-6xl font-black transition-colors duration-500" :class="isGoalReached ? 'text-emerald-600' : 'text-slate-800'">
+        S/. {{ (store.stats?.totalVentasDia || 0).toFixed(2) }}
+      </span>
+    </div>
 
-              <div class="w-full bg-slate-100 h-3 md:h-4 rounded-full overflow-hidden flex relative border border-slate-200/50">
-                <div class="transition-all duration-1000 ease-out h-full rounded-full" :class="isGoalReached ? 'bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-gradient-to-r from-orange-400 to-orange-500'" :style="{ width: goalProgress + '%' }"></div>
-              </div>
-            </div>
+    <div class="w-full bg-slate-100 h-3 md:h-4 rounded-full overflow-hidden flex relative border border-slate-200/50">
+      <div class="transition-all duration-1000 ease-out h-full rounded-full" :class="isGoalReached ? 'bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-gradient-to-r from-orange-400 to-orange-500'" :style="{ width: goalProgress + '%' }"></div>
+    </div>
 
-            <div class="flex flex-col items-center justify-center min-w-[140px] md:min-w-[160px] px-6 py-4 md:py-5 rounded-2xl border transition-colors duration-500" :class="isGoalReached ? 'bg-emerald-50 border-emerald-100' : 'bg-orange-50 border-orange-100'">
-              <span class="text-3xl md:text-4xl font-black mb-1" :class="isGoalReached ? 'text-emerald-600' : 'text-orange-600'">{{ goalProgress }}%</span>
-              <span class="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-center" :class="isGoalReached ? 'text-emerald-500' : 'text-orange-400'">
-                {{ isGoalReached ? 'Completado' : 'De la meta' }}
-              </span>
-            </div>
-          </div>
+    <div v-if="store.stats?.ventasPorTurno?.length > 0" class="flex flex-wrap gap-2 mt-5 pt-5 border-t border-gray-100">
+      <div v-for="t in store.stats?.ventasPorTurno" :key="t.turno"
+           class="px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs font-bold border transition-colors"
+           :class="t.turno === store.turnoActual ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-slate-50 border-slate-200 text-slate-600'">
+         <span class="px-1.5 py-0.5 rounded text-[10px] uppercase font-black"
+               :class="t.turno === store.turnoActual ? 'bg-orange-200 text-orange-800' : 'bg-slate-200 text-slate-400'">
+           T-{{ t.turno }}
+         </span>
+         S/. {{ t.total.toFixed(2) }}
+      </div>
+    </div>
+    
+    </div>
+
+  <div class="flex flex-col items-center justify-center min-w-[140px] md:min-w-[160px] px-6 py-4 md:py-5 rounded-2xl border transition-colors duration-500" :class="isGoalReached ? 'bg-emerald-50 border-emerald-100' : 'bg-orange-50 border-orange-100'">
+    <span class="text-3xl md:text-4xl font-black mb-1" :class="isGoalReached ? 'text-emerald-600' : 'text-orange-600'">{{ goalProgress }}%</span>
+    <span class="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-center" :class="isGoalReached ? 'text-emerald-500' : 'text-orange-400'">
+      {{ isGoalReached ? 'Completado' : 'De la meta' }}
+    </span>
+  </div>
+</div>
 
           <div v-if="isGoalReached" class="mt-6 p-4 bg-emerald-500 text-white rounded-xl flex items-center justify-between shadow-lg shadow-emerald-500/20 border border-emerald-400">
             <div class="flex items-center gap-3">
@@ -527,46 +543,59 @@ function iniciarAnalisis() {
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          <div class="bg-white p-5 md:p-6 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden group h-max">
-            <div class="absolute -right-4 -top-4 w-24 h-24 bg-emerald-50 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
-            <div class="relative z-10">
-              <div class="flex items-center justify-between mb-2 md:mb-4">
-                <p class="text-slate-400 font-bold uppercase text-xs tracking-wider">Caja</p>
-                <div class="p-2 md:p-2.5 bg-emerald-100 text-emerald-600 rounded-xl border border-emerald-200 shadow-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 md:w-5 md:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                </div>
-              </div>
-              <p class="text-3xl md:text-4xl font-black text-slate-800">S/. {{ (store.stats?.totalPagado || 0).toFixed(2) }}</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+        
+        <div class="bg-white p-5 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-emerald-200 hover:shadow-md transition-all">
+          <div class="flex justify-between items-start mb-4">
+            <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Efectivo (Caja)</span>
+            <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
             </div>
           </div>
-
-          <div class="bg-white p-5 md:p-6 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden group h-max">
-            <div class="absolute -right-4 -top-4 w-24 h-24 bg-blue-50 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
-            <div class="relative z-10">
-              <div class="flex items-center justify-between mb-2 md:mb-4">
-                <p class="text-slate-400 font-bold uppercase text-xs tracking-wider">Atendidos</p>
-                <div class="p-2 md:p-2.5 bg-blue-100 text-blue-600 rounded-xl border border-blue-200 shadow-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 md:w-5 md:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
-                </div>
-              </div>
-              <p class="text-3xl md:text-4xl font-black text-slate-800">{{ store.stats?.count || 0 }}</p>
-            </div>
-          </div>
-
-          <div class="bg-white p-5 md:p-6 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden group h-max">
-            <div class="absolute -right-4 -top-4 w-24 h-24 bg-amber-50 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
-            <div class="relative z-10">
-              <div class="flex items-center justify-between mb-2 md:mb-4">
-                <p class="text-slate-400 font-bold uppercase text-xs tracking-wider">Por Cobrar</p>
-                <div class="p-2 md:p-2.5 bg-amber-100 text-amber-600 rounded-xl border border-amber-200 shadow-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 md:w-5 md:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                </div>
-              </div>
-              <p class="text-3xl md:text-4xl font-black text-slate-800">S/. {{ (store.stats?.totalPorCobrar || 0).toFixed(2) }}</p>
-            </div>
-          </div>
+          <span class="text-2xl md:text-3xl font-black text-emerald-500 transform group-hover:scale-110 duration-100">
+            S/. {{ (store.stats?.totalEfectivo || 0).toFixed(2) }}
+          </span>
         </div>
+
+        <div class="bg-white p-5 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-purple-200 hover:shadow-md transition-all">
+          <div class="flex justify-between items-start mb-4">
+            <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Yape-Tarjeta</span>
+            <div class="w-8 h-8 rounded-full bg-purple-50 text-purple-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" /></svg>
+            </div>
+          </div>
+          <span class="text-2xl md:text-3xl font-black text-purple-500 transform group-hover:scale-110 duration-100">
+            S/. {{ (store.stats?.totalDigital || 0).toFixed(2) }}
+          </span>
+        </div>
+
+        <div class="bg-white p-5 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-orange-200 hover:shadow-md transition-all">
+          <div class="flex justify-between items-start mb-4">
+            <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Por Cobrar</span>
+            <div class="w-8 h-8 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center group-hover:scale-110 transition-transform" :class="{'animate-pulse bg-red-100 text-red-600': store.stats?.totalPorCobrar > 0}">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+            </div>
+          </div>
+          <span class="text-2xl md:text-3xl font-black transform group-hover:scale-110 duration-100" :class="store.stats?.totalPorCobrar > 0 ? 'text-red-500' : 'text-orange-500'">
+            S/. {{ (store.stats?.totalPorCobrar || 0).toFixed(2) }}
+          </span>
+        </div>
+
+        <div class="bg-white p-5 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-blue-200 hover:shadow-md transition-all">
+          <div class="flex justify-between items-start mb-4">
+            <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Atendidos</span>
+            <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
+            </div>
+          </div>
+          <div class="flex items-center mt-2">
+            <span class="inline-flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full bg-indigo-50 text-indigo-600 text-2xl md:text-3xl font-black border-2 border-indigo-100 shadow-sm transform group-hover:scale-110 duration-100 ">
+              {{ store.stats?.count || 0 }}
+            </span>
+</div>
+        </div>
+
+      </div>
       </div>
 
       <div class="xl:col-span-1 h-[500px] md:h-[550px] mb-8 md:mb-0">
@@ -580,7 +609,7 @@ function iniciarAnalisis() {
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09l2.846.813-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" /></svg>
               </div>
               <div>
-                <h3 class="text-base md:text-lg font-black text-white tracking-wide leading-none">KausaBot AI</h3>
+                <h3 class="text-base md:text-lg font-black text-white tracking-wide leading-none">KausaBot AI (version beta)</h3>
                 <span class="text-indigo-300/70 text-[9px] md:text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 mt-1">
                   <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span> En línea
                 </span>

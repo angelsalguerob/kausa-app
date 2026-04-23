@@ -1,17 +1,57 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { usePosStore } from '../stores/pos'
+import { createClient } from '@supabase/supabase-js'
 
-// 🚀 MEMORIA BLINDADA (Usamos objetos planos para máxima compatibilidad)
+// 1. Configuramos la conexión
+const supabaseUrl = 'https://xzmcstdhkvbfceobzbbn.supabase.co'
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6bWNzdGRoa3ZiZmNlb2J6YmJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3NjE3NzUsImV4cCI6MjA4MTMzNzc3NX0.URZyoEYjY302xinc77q0Y7F4rKXPJYAprD86ySTERhw'
+const supabase = createClient(supabaseUrl, supabaseKey)
+
+// MEMORIA BLINDADA
 const cachedOrders = useState('kitchen-cache', () => [])
 const processingIds = useState('kitchen-processing', () => ({}))
 const knownOrderIds = useState('kitchen-known-ids', () => ({}))
 const isInitialLoad = ref(true)
 
 const orders = ref(cachedOrders.value || [])
-const timer = ref(null)
 const store = usePosStore()
 
+// DECLARAMOS LA VARIABLE DEL CANAL
+let realtimeChannel = null
+
+// 1. RELOJ INTERNO PARA MEDIR TIEMPOS EN VIVO
+const currentTime = ref(Date.now())
+let timeInterval = null
+
+onMounted(() => {
+  timeInterval = setInterval(() => {
+    currentTime.value = Date.now()
+  }, 10000)
+})
+
+onUnmounted(() => {
+  if (timeInterval) clearInterval(timeInterval)
+})
+
+// 2. LÓGICA DE COLORES Y TIEMPOS (Corregido el bug del tiempo negativo)
+function getUrgency(createdAt) {
+  if (!createdAt) return { time: '0m', label: 'NUEVO', bg: 'bg-emerald-500' }
+  
+  const orderTime = new Date(createdAt).getTime()
+  // FIX: Math.max asegura que nunca baje de 0
+  const diffMins = Math.max(0, Math.floor((currentTime.value - orderTime) / 60000))
+
+  if (diffMins >= 15) {
+    return { time: `${diffMins}m`, label: 'URGENTE', bg: 'bg-red-600 animate-pulse shadow-red-500/50' }
+  } else if (diffMins >= 10) {
+    return { time: `${diffMins}m`, label: 'ALERTA', bg: 'bg-orange-500 shadow-orange-500/50' }
+  } else {
+    return { time: `${diffMins}m`, label: 'A TIEMPO', bg: 'bg-emerald-500 shadow-emerald-500/50' }
+  }
+}
+
+// sonido
 const playSound = () => {
   const audio = new Audio('/ding.mp3')
   audio.play().catch(e => console.log('Interacción requerida para audio'))
@@ -22,20 +62,32 @@ onMounted(async () => {
 
   // Carga inicial
   await loadKitchenOrders()
-  isInitialLoad.value = false // Terminamos la carga inicial, a partir de ahora suena la campana
+  isInitialLoad.value = false 
 
-  timer.value = setInterval(loadKitchenOrders, 2000)
+  // LA MAGIA: Nos suscribimos a los cambios en tiempo real
+  realtimeChannel = supabase
+    .channel('cocina-channel')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'Order' },
+      (payload) => {
+        console.log('¡Cambio detectado por Supabase!', payload)
+        loadKitchenOrders()
+      }
+    )
+    .subscribe()
 })
 
 onUnmounted(() => {
-  clearInterval(timer.value)
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel)
+  }
 })
 
 async function loadKitchenOrders() {
   try {
-    const data = await $fetch('/api/orders/kitchen')
+    const data = await $fetch('/api/orders/kitchen?_t=' + Date.now())
 
-    // Filtramos los que el chef está procesando o rechazó
     const visibleOrders = data.filter(order =>
       order.status !== 'Rechazado' && !processingIds.value[order.id]
     )
@@ -43,13 +95,10 @@ async function loadKitchenOrders() {
     let soundTriggered = false
 
     visibleOrders.forEach(order => {
-      // Si el ID no está en nuestra memoria de conocidos
       if (!knownOrderIds.value[order.id]) {
-        // Solo hacemos sonar si NO es la primerísima carga de la página
         if (!isInitialLoad.value) {
           soundTriggered = true
         }
-        // Marcamos como conocido para SIEMPRE
         knownOrderIds.value[order.id] = true
       }
     })
@@ -66,16 +115,14 @@ async function loadKitchenOrders() {
   }
 }
 
-// 🚀 FUNCIÓN INSTANTÁNEA: Sin demoras, directo al grano
+// FUNCIÓN INSTANTÁNEA: Para platos terminados exitosamente
 async function markAsReady(orderId) {
   try {
     processingIds.value[orderId] = true
-    // Al quitarlo del array instantáneamente, Vue dispara el efecto visual
     orders.value = orders.value.filter(o => o.id !== orderId)
     cachedOrders.value = orders.value
     store.decrementarAlertaCocina()
 
-    // El servidor trabaja en segundo plano sin interrumpir al usuario
     await $fetch('/api/orders/complete', {
       method: 'POST',
       body: { id: orderId }
@@ -86,7 +133,25 @@ async function markAsReady(orderId) {
   }
 }
 
-// LÓGICA DE CANCELACIÓN DEL CHEF
+// NUEVA FUNCIÓN EXCLUSIVA para el botón "ENTERADO"
+async function acknowledgeCancel(orderId) {
+  try {
+    processingIds.value[orderId] = true
+    orders.value = orders.value.filter(o => o.id !== orderId)
+    cachedOrders.value = orders.value
+    store.decrementarAlertaCocina()
+
+    await $fetch('/api/orders/reject', {
+      method: 'POST',
+      body: { id: orderId }
+    })
+  } catch (e) {
+    delete processingIds.value[orderId]
+    loadKitchenOrders()
+  }
+}
+
+// LÓGICA DE CANCELACIÓN DIRECTA DESDE EL CHEF
 const showCancelModal = ref(false)
 const orderToCancel = ref(null)
 const isCancelling = ref(false)
@@ -120,7 +185,8 @@ function confirmCancelOrder() {
     body: { id: idToRemove }
   }).catch(error => {
     console.error('Error de red al rechazar:', error)
-    alert('Hubo un problema de conexión al rechazar el pedido.')
+    // FIX: Eliminado el alert() de JS. 
+    // Restaura la UI silenciosamente si el servidor falla.
     delete processingIds.value[idToRemove]
     loadKitchenOrders()
   })
@@ -231,8 +297,9 @@ function getTicketColor(description) {
 
     <TransitionGroup name="kitchen-grid" type="transition" tag="div" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 relative z-0 w-full">
       
-      <div v-for="order in orders" :key="order.id"
+      <div v-for="order in orders" :key="order.id"      
         class="bg-white rounded-2xl shadow-sm border-2 overflow-hidden flex flex-col hover:shadow-lg transition-all duration-300 relative group"
+        
         :class="{
           'border-red-500 shadow-red-500/30 scale-[1.02] z-10': order.status === 'Cancelado',
           'border-teal-600 shadow-teal-600/20': order.status !== 'Cancelado' && order.table?.toLowerCase().includes('llevar'),
@@ -241,6 +308,19 @@ function getTicketColor(description) {
           'border-pink-500 shadow-pink-500/20': order.status !== 'Cancelado' && !order.table?.toLowerCase().includes('llevar') && getTicketColor(order.description) === 'postre',
           'border-slate-400 shadow-slate-400/20': order.status !== 'Cancelado' && !order.table?.toLowerCase().includes('llevar') && getTicketColor(order.description) === 'otro'
         }">
+        
+        <div v-if="order.status !== 'Cancelado'"
+            class="absolute -right-12 top-5 w-40 text-center py-1 shadow-md transform rotate-45 z-20 border-b border-black/10 transition-colors duration-1000"
+            :class="getUrgency(order.createdAt).bg">
+          <div class="flex flex-col items-center justify-center">
+            <span class="text-[12px] md:text-[14px] font-black text-white leading-none">
+              {{ getUrgency(order.createdAt).time }}
+            </span>
+            <span class="text-[7px] md:text-[8px] font-black text-white/90 uppercase tracking-[0.2em] leading-tight mt-0.5">
+              {{ getUrgency(order.createdAt).label }}
+            </span>
+          </div>
+        </div>
         
         <div v-if="order.status === 'Cancelado'" class="bg-red-500 text-white font-black text-center py-2 text-sm uppercase tracking-widest flex items-center justify-center gap-2 animate-pulse">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3Z" /></svg>
@@ -255,34 +335,41 @@ function getTicketColor(description) {
           'bg-pink-50 border-pink-200': order.status !== 'Cancelado' && !order.table?.toLowerCase().includes('llevar') && getTicketColor(order.description) === 'postre',
           'bg-slate-50 border-slate-200': order.status !== 'Cancelado' && !order.table?.toLowerCase().includes('llevar') && getTicketColor(order.description) === 'otro'
         }">
-          <div class="flex justify-between items-start">
+
+          <div class="flex justify-between items-start relative z-10">
+            
             <div class="flex items-center gap-2 md:gap-3">
+              
               <div class="p-2 md:p-2.5 bg-white rounded-xl shadow-sm border border-black/5 flex items-center justify-center">
                 <svg v-if="order.table?.toLowerCase().includes('llevar')" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6 text-teal-600"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
                 <svg v-else-if="getTicketColor(order.description) === 'bebida'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6 text-blue-600"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>
                 <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M6.082 18h11.836l1.264-12A1.125 1.125 0 0 1 20.302 4.5H3.698a1.125 1.125 0 0 1 1.12 1.243l1.264 12ZM8.25 10.5h7.5M8.25 14.25h7.5M12 21.75V18M12 4.5v-1.5M12 4.5H9.75M12 4.5h2.25" /></svg>
               </div>
-              <div>
-                <span class="block text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Orden #</span>
-                <span class="text-2xl md:text-3xl font-black text-slate-800 leading-none" :class="{ 'text-red-600 line-through opacity-80': order.status === 'Cancelado' }">
-                  {{ order.dailyTicket || order.id }}
-                </span>
+
+              <div class="flex flex-col justify-center">
+                <div class="flex items-center gap-2 mb-0.5">
+                  <span class="block text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Orden #</span>
+                </div>
+                
+                <div class="flex items-end gap-3">
+                  <span class="text-2xl md:text-3xl font-black text-slate-800 leading-none" :class="{ 'text-red-600 line-through opacity-80': order.status === 'Cancelado' }">
+                    {{ order.dailyTicket || order.id }}
+                  </span>
+                  
+                  <div class="flex items-center gap-1 text-slate-500 bg-white/60 px-1.5 py-0.5 md:px-2 md:py-1 rounded border border-black/5 shadow-sm mb-0.5" :class="{ 'text-red-500 bg-red-100 border-red-200': order.status === 'Cancelado' }">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3 md:w-3.5 h-3 md:h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                    <span class="text-[10px] md:text-[11px] font-mono font-black">
+                      {{ new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div class="flex flex-col items-end gap-1">
-              <button v-if="order.status !== 'Cancelado'" @click="askToCancel(order)" class="text-slate-400 hover:text-red-500 active:bg-red-100 active:text-red-600 hover:bg-red-50 rounded-lg p-1.5 transition-all -mr-1" title="Rechazar Pedido">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-              </button>
-              <div class="flex items-center gap-1 text-slate-500 bg-white/60 px-1.5 py-0.5 md:px-2 md:py-1 rounded border border-black/5 shadow-sm" :class="{ 'text-red-500 bg-red-100 border-red-200': order.status === 'Cancelado' }">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3 md:w-3.5 h-3 md:h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                <span class="text-[10px] md:text-[11px] font-mono font-black">
-                  {{ new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
-                </span>
-              </div>
-            </div>
+            <div class="w-12 md:w-16"></div>
+            
           </div>
-
+          
           <div class="w-full bg-white px-3 md:px-4 py-2 md:py-3 rounded-xl shadow-sm border flex items-center justify-center text-center mt-1"
             :class="{
               'border-teal-300 bg-teal-50/50': order.table?.toLowerCase().includes('llevar'),
@@ -342,23 +429,25 @@ function getTicketColor(description) {
           </ul>
         </div>
 
-        <div class="p-3 md:p-4 bg-slate-50 border-t border-slate-200 mt-auto z-10 relative">
-          <button v-if="order.status !== 'Cancelado'" @click="markAsReady(order.id)"
-            class="w-full border-2 font-bold py-2.5 md:py-3 rounded-xl flex items-center justify-center gap-2 shadow-sm text-sm md:text-base transition-all active:scale-95 active:shadow-inner focus:outline-none"
-            :class="{
-              'bg-white border-teal-500 text-teal-600 hover:bg-teal-500 hover:text-white': order.table?.toLowerCase().includes('llevar'),
-              'bg-white border-emerald-500 text-emerald-600 hover:bg-emerald-500 hover:text-white': !order.table?.toLowerCase().includes('llevar')
-            }">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 md:w-5 md:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+        <div class="p-3 md:p-4 bg-white/50 border-t flex gap-2 md:gap-3 items-stretch">
+          
+          <button v-if="order.status !== 'Cancelado'" @click="markAsReady(order.id)" class="flex-1 bg-white border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-500 hover:text-white active:scale-[0.98] transition-all py-2.5 md:py-3 rounded-xl font-black text-sm md:text-base flex items-center justify-center gap-2 shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
             MARCAR LISTO
           </button>
-          <button v-else @click="markAsReady(order.id)"
+
+          <button v-if="order.status !== 'Cancelado'" @click="askToCancel(order)" class="w-12 md:w-14 shrink-0 bg-red-50 border-2 border-red-100 text-red-500 hover:bg-red-500 hover:border-red-500 hover:text-white active:scale-[0.98] transition-all rounded-xl flex items-center justify-center shadow-sm" title="Anular Orden">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+          </button>
+          
+          <button v-else @click="acknowledgeCancel(order.id)"
             class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 md:py-3 rounded-xl transition flex items-center justify-center gap-2 active:scale-95 shadow-md shadow-red-500/30 text-sm md:text-base">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 md:w-5 md:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
             ENTERADO (QUITAR)
           </button>
         </div>
       </div>
+
     </TransitionGroup>
 
     <div v-if="orders.length === 0" class="flex flex-col items-center justify-center py-16 md:py-20 text-slate-400 opacity-80 text-center">
@@ -397,36 +486,9 @@ function getTicketColor(description) {
   animation: border-pulse-orange 3.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* =========================================
-   🪄 LA MAGIA DEL GRID: RÁPIDO Y SEGURO
-   ========================================= */
-
-/* Movimiento general: cuando las tarjetas se reacomodan */
-.kitchen-grid-move {
-  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Tiempos de entrada y salida */
-.kitchen-grid-enter-active {
-  transition: all 0.35s ease-out;
-}
-
-.kitchen-grid-leave-active {
-  transition: all 0.35s ease-out;
-  position: absolute; /* 🚀 MAGIA: Libera el hueco en el grid al instante */
-  z-index: 0;
-}
-
-/* Cuando un pedido ENTRA (Bono: aparece suavecito) */
-.kitchen-grid-enter-from {
-  opacity: 0;
-  transform: scale(0.9) translateY(20px);
-}
-
-/* 🚀 Cuando el chef le da "MARCAR LISTO" (El efecto humo) */
-.kitchen-grid-leave-to {
-  opacity: 0;
-  transform: scale(0.8) translateY(-40px); /* Vuela hacia arriba y se encoge */
-  filter: blur(4px) brightness(1.2); /* Efecto desvanecimiento/brillo */
-}
+.kitchen-grid-move { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+.kitchen-grid-enter-active { transition: all 0.35s ease-out; }
+.kitchen-grid-leave-active { transition: all 0.35s ease-out; position: absolute; z-index: 0; }
+.kitchen-grid-enter-from { opacity: 0; transform: scale(0.9) translateY(20px); }
+.kitchen-grid-leave-to { opacity: 0; transform: scale(0.8) translateY(-40px); filter: blur(4px) brightness(1.2); }
 </style>

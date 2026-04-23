@@ -92,16 +92,18 @@ function triggerToast(title, details, type = 'success') {
   }, 3000)
 }
 
-function handleFileUpload(event) {
-  const file = event.target.files[0]
-  if (file) {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      form.value.image = e.target.result 
-    }
-    reader.readAsDataURL(file)
-  }
-}
+const galleryImages = [
+  { url: '/img/platos/lomosaltado.png', label: 'Lomo' },
+  { url: '/img/platos/chaufadepollo.png', label: 'Chaufa' },  
+  { url: '/img/platos/ceviche.jpg', label: 'Ceviche' },
+  { url: '/img/platos/pollo.jpg', label: 'Pollo' },
+  { url: '/img/platos/burger.jpg', label: 'Fast Food' },
+  { url: '/img/platos/sopa.jpg', label: 'Sopa' },
+  { url: '/img/platos/gaseosa.jpg', label: 'Gaseosa' },
+  { url: '/img/platos/jugo.jpg', label: 'Jugo' },
+  { url: '/img/platos/postre.jpg', label: 'Postre' },
+  { url: '/img/platos/default.jpg', label: 'Plato' }
+]
 
 function openCreateModal() {
   isEditing.value = false
@@ -352,20 +354,42 @@ async function confirmDelete() {
           </div>
 
           <div>
-            <label class="block text-slate-600 text-sm mb-2 font-bold">Imagen del Plato</label>
-            <div class="flex gap-4 items-start">
-               <div class="w-20 h-20 md:w-24 md:h-24 bg-gray-100 rounded-xl overflow-hidden border border-gray-200 shrink-0 flex items-center justify-center relative group shadow-inner">
+            <label class="block text-slate-600 text-sm mb-2 font-bold">Selecciona una Foto</label>
+            
+            <div class="flex gap-4 items-start mb-4">
+               <div class="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-xl overflow-hidden border-2 border-orange-100 shrink-0 flex items-center justify-center relative shadow-inner">
                  <img v-if="form.image" :src="form.image" class="w-full h-full object-cover">
-                 <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-slate-400 opacity-50"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
+                 <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-orange-300 opacity-50"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
                </div>
-               <div class="flex-1 space-y-2">
-                 <label class="block w-full text-center bg-white hover:bg-gray-50 text-slate-600 text-xs md:text-sm font-bold py-2.5 md:py-2 rounded-lg cursor-pointer transition border border-gray-300 shadow-sm flex items-center justify-center gap-2">
-                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
-                   Subir Foto
-                   <input type="file" accept="image/*" class="hidden" @change="handleFileUpload">
-                 </label>
-                 <input v-model="form.image" type="text" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs text-slate-600 focus:border-orange-500 outline-none" placeholder="O pega URL aquí...">
+               <div class="flex-1 pt-1">
+                 <label class="text-xs text-slate-500 font-bold mb-1 block">O pega una URL externa:</label>
+                 <input v-model="form.image" type="text" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-xs text-slate-700 focus:border-orange-500 outline-none transition" placeholder="https://ejemplo.com/foto.jpg">
                </div>
+            </div>
+
+            <div class="bg-gray-50/50 p-3 rounded-xl border border-gray-200">
+              <span class="text-[10px] uppercase font-black tracking-widest text-slate-400 block mb-2">Galería del Restaurante</span>
+              <div class="grid grid-cols-4 md:grid-cols-5 gap-2 overflow-y-auto max-h-32 pr-1 custom-scrollbar">
+                
+                <button 
+                  v-for="(img, idx) in galleryImages" 
+                  :key="idx"
+                  type="button"
+                  @click="form.image = img.url"
+                  class="relative aspect-square rounded-lg overflow-hidden border-2 transition-all duration-200 group bg-gray-100"
+                  :class="form.image === img.url ? 'border-orange-500 shadow-md shadow-orange-500/30 scale-95' : 'border-transparent hover:border-orange-300 hover:shadow-sm'"
+                  :title="img.label"
+                >
+                  <img :src="img.url" class="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" :alt="img.label" onerror="this.src='https://placehold.co/100x100?text=Foto'">
+                  
+                  <div v-if="form.image === img.url" class="absolute inset-0 bg-orange-500/20 flex items-center justify-center">
+                    <div class="bg-orange-500 text-white rounded-full p-0.5 shadow-sm">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" /></svg>
+                    </div>
+                  </div>
+                </button>
+
+              </div>
             </div>
           </div>
 
