@@ -1,12 +1,12 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue' 
 import { usePosStore } from '../stores/pos'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 
 const store = usePosStore()
 const router = useRouter()
 
-const isMobileMenuOpen = ref(false)
+const isMobileMenuOpen = useState('mobileMenuOpen', () => false)
 let radarInterval = null
 
 onMounted(() => {
@@ -15,7 +15,7 @@ onMounted(() => {
   if (!store.user) {
     router.push('/login')
   } else {
-    // 🚀 DISPARAMOS EL RADAR AL ENTRAR Y LUEGO CADA 15 SEGUNDOS
+    //  DISPARAMOS EL RADAR AL ENTRAR Y LUEGO CADA 15 SEGUNDOS
     store.checkGlobalAlerts()
     radarInterval = setInterval(() => {
       store.checkGlobalAlerts()

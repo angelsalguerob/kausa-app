@@ -1,7 +1,7 @@
-//pages/pos.vue
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { usePosStore } from '../stores/pos'
+
 
 const store = usePosStore()
 
@@ -203,7 +203,7 @@ onMounted(() => {
   // Refresca el catálogo cada 15 segundos
   syncInterval = setInterval(syncCatalog, 15000)
   
-  // 🚀 Refresca las ÓRDENES cada 5 segundos (Magia en tiempo real)
+  //  Refresca las ÓRDENES cada 5 segundos (Magia en tiempo real)
   ordersInterval = setInterval(loadActiveOrders, 5000) 
 })
 
@@ -232,7 +232,7 @@ async function handleCheckout() {
     isTakeawayActive.value = false
     takeawayCustomer.value = ''
     
-    // 🚀 FIX 1 (UI OPTIMISTA): Metemos la orden al instante en la lista de activos
+    //  FIX 1 (UI OPTIMISTA): Metemos la orden al instante en la lista de activos
     // para que la burbujita naranja aumente de golpe
     activeOrders.value.unshift(order)
     
@@ -247,11 +247,11 @@ function closeModal() {
 
 async function handleMarcarEntregado(order) {
   try {
-    //  1. AL INSTANTE: Lo metemos a la memoria ciega y lo borramos de la vista
+    // 1. AL INSTANTE: Lo metemos a la memoria ciega y lo borramos de la vista
     processingIds.value[order.id] = true
     activeOrders.value = activeOrders.value.filter(o => o.id !== order.id)
 
-    //  2. Usamos TU función original del store en vez del $fetch directo
+    // 2. Usamos TU función original del store en vez del $fetch directo
     await store.marcarComoEntregado(order.id)
 
   } catch (error) {
@@ -294,6 +294,45 @@ function confirmCancelPos() {
     alert('Uy, hubo un problema de red. Verificando con cocina...')
     loadActiveOrders()
   })
+}
+
+// ══════════════════════════════════════════════════
+// 🚀TRAMPA DE NAVEGACIÓN (MÉTODO CLÁSICO BLINDADO)
+// ══════════════════════════════════════════════════
+
+const isMobileMenuOpen = useState('mobileMenuOpen', () => false)
+const showExitModal = ref(false)
+let allowExit = false 
+
+onBeforeRouteLeave((to, from) => {
+  if (allowExit) return true
+
+  if (showMobileCart.value) {
+    showMobileCart.value = false
+    return false 
+  }
+
+  if (showExitModal.value) {
+    showExitModal.value = false
+    return false
+  }
+
+  if (!isMobileMenuOpen.value) {
+    isMobileMenuOpen.value = true
+    return false
+  }
+
+  if (isMobileMenuOpen.value) {
+    showExitModal.value = true
+    return false
+  }
+})
+
+function confirmExit() {
+  allowExit = true
+  showExitModal.value = false
+  isMobileMenuOpen.value = false
+  router.push('/') 
 }
 </script>
 
@@ -506,12 +545,13 @@ function confirmCancelPos() {
             </button>
           </div>
 
-          <div class="grid grid-cols-2 gap-3 mt-4">
-            <button @click="handleCancelCart" class="bg-white border border-gray-300 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-600 font-bold py-3 rounded-xl transition shadow-sm">
-              <span class="lg:hidden">{{ store.cart.length === 0 ? 'Cerrar Panel' : 'Cancelar Pedido' }}</span>
+          <div class="flex gap-3 mt-4">
+            <button @click="handleCancelCart" class="flex-1 bg-red-50 text-red-500 border-2 border-red-200 hover:bg-red-100 py-3 rounded-xl font-bold transition-colors shadow-sm flex items-center justify-center gap-2 active:scale-95">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+              <span class="lg:hidden truncate">{{ store.cart.length === 0 ? 'Cerrar' : 'Cancelar' }}</span>
               <span class="hidden lg:inline">Cancelar</span>
             </button>
-            <button @click="handleCheckout()" :disabled="!canCheckout" class="font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2" :class="[canCheckout ? 'bg-emerald-500 hover:bg-emerald-600 text-white active:scale-95 shadow-emerald-500/30' : 'bg-gray-300 text-gray-400 cursor-not-allowed shadow-none', { 'cart-bump-desktop': cartPulse && canCheckout }]">
+            <button @click="handleCheckout()" :disabled="!canCheckout" class="flex-1 font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2" :class="[canCheckout ? 'bg-emerald-500 hover:bg-emerald-600 text-white active:scale-95 shadow-emerald-500/30' : 'bg-gray-300 text-gray-400 cursor-not-allowed shadow-none', { 'cart-bump-desktop': cartPulse && canCheckout }]">
               Enviar
             </button>
           </div>
@@ -559,10 +599,11 @@ function confirmCancelPos() {
           </div>
           
           <div class="p-4 bg-white border-t border-gray-200 mt-auto shrink-0 lg:hidden">
-          <button @click="showMobileCart = false" class="w-full bg-white border-2 border-gray-200 hover:bg-gray-50 text-slate-600 font-bold py-3 rounded-xl transition shadow-sm active:scale-95">
-            Cerrar Panel
-          </button>
-        </div>
+            <button @click="showMobileCart = false" class="w-full bg-red-50 text-red-500 border-2 border-red-200 hover:bg-red-100 py-3 rounded-xl font-bold transition-colors shadow-sm flex items-center justify-center gap-2 active:scale-95">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+              Cerrar Panel
+            </button>
+          </div>
         </div>
       </div>
 
@@ -604,10 +645,11 @@ function confirmCancelPos() {
           </div>
 
           <div class="p-4 bg-white border-t border-gray-200 mt-auto shrink-0 lg:hidden">
-          <button @click="showMobileCart = false" class="w-full bg-white border-2 border-gray-200 hover:bg-gray-50 text-slate-600 font-bold py-3 rounded-xl transition shadow-sm active:scale-95">
-            Cerrar Panel
-          </button>
-        </div>
+            <button @click="showMobileCart = false" class="w-full bg-red-50 text-red-500 border-2 border-red-200 hover:bg-red-100 py-3 rounded-xl font-bold transition-colors shadow-sm flex items-center justify-center gap-2 active:scale-95">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+              Cerrar Panel
+            </button>
+          </div>
 
         </div>
       </div>
@@ -799,6 +841,22 @@ function confirmCancelPos() {
           <button type="submit" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-bold transition-colors">Iniciar Pedido</button>
         </div>
       </form>
+    </div>
+  </div>
+  <div v-if="showExitModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="showExitModal = false"></div>
+    <div class="relative bg-white rounded-3xl border border-gray-100 shadow-2xl max-w-sm w-full p-8 text-center transform transition-all">
+      <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500 shadow-inner border-4 border-red-100">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-10 h-10">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+        </svg>
+      </div>
+      <h3 class="text-2xl font-black text-slate-800 mb-2">¿Salir de la App?</h3>
+      <p class="text-slate-500 mb-6 text-sm">Estás a punto de salir del Punto de Venta. ¿Deseas continuar?</p>
+      <div class="flex gap-3">
+        <button @click="showExitModal = false" class="flex-1 bg-white border border-gray-300 text-slate-600 font-bold py-3 rounded-xl hover:bg-gray-50 transition shadow-sm">Quedarme</button>
+        <button @click="confirmExit" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl shadow-md transition active:scale-95">Sí, Salir</button>
+      </div>
     </div>
   </div>
 </template>

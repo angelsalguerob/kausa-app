@@ -95,14 +95,10 @@ function triggerToast(title, details, type = 'success') {
 const galleryImages = [
   { url: '/img/platos/lomosaltado.png', label: 'Lomo' },
   { url: '/img/platos/chaufadepollo.png', label: 'Chaufa' },  
-  { url: '/img/platos/ceviche.jpg', label: 'Ceviche' },
-  { url: '/img/platos/pollo.jpg', label: 'Pollo' },
-  { url: '/img/platos/burger.jpg', label: 'Fast Food' },
-  { url: '/img/platos/sopa.jpg', label: 'Sopa' },
-  { url: '/img/platos/gaseosa.jpg', label: 'Gaseosa' },
-  { url: '/img/platos/jugo.jpg', label: 'Jugo' },
-  { url: '/img/platos/postre.jpg', label: 'Postre' },
-  { url: '/img/platos/default.jpg', label: 'Plato' }
+  
+  { url: '/img/platos/pilsenbotella.png', label: 'Cerveza' }
+    
+
 ]
 
 function openCreateModal() {
