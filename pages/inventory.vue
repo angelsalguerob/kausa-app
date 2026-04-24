@@ -94,9 +94,31 @@ function triggerToast(title, details, type = 'success') {
 
 const galleryImages = [
   { url: '/img/platos/lomosaltado.png', label: 'Lomo' },
-  { url: '/img/platos/chaufadepollo.png', label: 'Chaufa' },  
-  
-  { url: '/img/platos/pilsenbotella.png', label: 'Cerveza' }
+  { url: '/img/platos/chaufadepollo.png', label: 'Chaufa' }, 
+  { url: '/img/platos/ceviche.png', label: 'ceviche' }, 
+  { url: '/img/platos/anticucho.jpg', label: 'anticucho' },
+  { url: '/img/platos/arrozconpollo.png', label: 'Arroz con Pollo' },
+  { url: '/img/platos/caucau.jpg', label: 'Caucau' },
+  { url: '/img/platos/causaatun.jpeg', label: 'Causa de Atún' },
+  { url: '/img/platos/causapollo.jpg', label: 'Causa de Pollo' },  
+  { url: '/img/platos/chicharronchancho.jpg', label: 'Chicharron de Chancho' },
+  { url: '/img/platos/chicharrontrucha.jpg', label: 'Chicharron de Trucha' },
+  { url: '/img/platos/cocamediana.jpg', label: 'Coca Cola' },
+  { url: '/img/platos/cocamediolitro.jpg', label: 'Coca Cola 1/2 Litro' },
+  { url: '/img/platos/cristalbotella.jpg', label: 'Cerveza Cristal' },
+  { url: '/img/platos/cuycolorado.jpg', label: 'Cuy' },
+  { url: '/img/platos/gelatina.jpg', label: 'Gelatina' },
+  { url: '/img/platos/incakolamediana.png', label: 'Inca Kola' },  
+  { url: '/img/platos/pilsenbotella.png', label: 'Cerveza Pilsen' },
+  { url: '/img/platos/incakolamediolitro.jpg', label: 'Inca Kola 1/2 Litro' },
+  { url: '/img/platos/lentejas.jpg', label: 'Lentejas' },
+  { url: '/img/platos/polloalabrasa.jpg', label: 'Pollo a la Brasas' },
+  { url: '/img/platos/pollobroaster.jpg', label: 'Pollo Broaster' },
+  { url: '/img/platos/secores.jpg', label: 'Secores' }
+
+
+
+
     
 
 ]

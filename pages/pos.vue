@@ -298,39 +298,38 @@ onBeforeRouteLeave((to, from) => {
   <div class="flex h-full lg:gap-6 relative overflow-hidden lg:overflow-visible">
     <div class="flex-1 flex flex-col overflow-hidden pb-24 lg:pb-0 w-full">
 
-      <header class="mb-6 flex flex-col gap-4">
+      <header class="mb-4 lg:mb-6 landscape:mb-2 flex flex-col gap-3 lg:gap-4 landscape:gap-1.5 shrink-0">
         <div class="relative shadow-sm flex items-center">
-          <span class="absolute left-4 text-slate-400 pointer-events-none">
+          <span class="absolute left-3 lg:left-4 text-slate-400 pointer-events-none">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
-              stroke="currentColor" class="w-5 h-5">
+              stroke="currentColor" class="w-4 h-4 lg:w-5 lg:h-5">
               <path stroke-linecap="round" stroke-linejoin="round"
                 d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
             </svg>
           </span>
 
           <input v-model="searchQuery" type="text" placeholder="Buscar producto..."
-            class="w-full bg-white text-slate-700 pl-11 pr-12 py-4 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition">
+            class="w-full bg-white text-slate-700 pl-10 lg:pl-11 pr-10 lg:pr-12 py-2.5 lg:py-4 landscape:py-1.5 rounded-lg lg:rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition text-sm lg:text-base">
 
           <button @click="syncCatalog"
-            class="absolute right-3 p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-all"
+            class="absolute right-2 lg:right-3 p-1.5 lg:p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-all"
             title="Sincronizar Catalogo">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
-              stroke="currentColor" class="w-5 h-5" :class="{ 'animate-spin text-orange-500': isSyncingCatalog }">
+              stroke="currentColor" class="w-4 h-4 lg:w-5 lg:h-5" :class="{ 'animate-spin text-orange-500': isSyncingCatalog }">
               <path stroke-linecap="round" stroke-linejoin="round"
                 d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
             </svg>
           </button>
         </div>
 
-        <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+        <div class="flex gap-2 lg:gap-3 overflow-x-auto pb-1 lg:pb-2 scrollbar-hide">
           <button v-for="cat in filterCategories" :key="cat" @click="selectedCategory = cat"
-            class="px-5 py-2 rounded-xl text-sm font-bold transition whitespace-nowrap"
+            class="px-4 py-1.5 lg:px-5 lg:py-2 landscape:py-1 landscape:px-3 landscape:text-[11px] rounded-lg lg:rounded-xl text-xs lg:text-sm font-bold transition whitespace-nowrap"
             :class="selectedCategory === cat ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'bg-white text-slate-600 border border-gray-200 shadow-sm'">
             {{ cat }}
           </button>
         </div>
       </header>
-
       <div class="flex-1 overflow-y-auto pr-2 pb-4">
         <div v-if="filteredProducts.length === 0"
           class="flex flex-col items-center justify-center py-16 text-slate-400">
@@ -343,32 +342,20 @@ onBeforeRouteLeave((to, from) => {
           <p class="text-sm">Prueba con otro termino de busqueda o categoria.</p>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
+        <div class="grid grid-cols-2 landscape:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4 p-3 lg:p-4">
           <div v-for="product in filteredProducts" :key="product.id" @click="handleProductClick(product)"
             class="bg-white rounded-2xl p-0 cursor-pointer border border-gray-200 shadow-sm group relative overflow-hidden flex flex-col transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_15px_30px_-5px_rgba(249,115,22,0.3)] hover:border-orange-300">
             <div v-if="product.type === 'combo'"
               class="absolute top-2 left-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md z-10 shadow-sm flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
-                stroke="currentColor" class="w-3 h-3">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
-              </svg>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>
               HOY
             </div>
 
-            <div
-              class="aspect-[4/3] overflow-hidden bg-slate-50 relative flex items-center justify-center w-full border-b border-gray-100">
+            <div class="aspect-[1/3] landscape:aspect-[3/1] lg:landscape:aspect-[1/3] overflow-hidden bg-slate-50 relative flex items-center justify-center w-full border-b border-gray-100">
               <img v-if="product.image" :src="product.image" alt="Foto"
                 class="w-full h-full object-cover group-hover:scale-110 transition duration-500">
-
-              <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                stroke="currentColor" class="w-12 h-12 text-slate-300 group-hover:scale-110 transition duration-500">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-              </svg>
-
-              <div
-                class="absolute bottom-0 right-0 bg-slate-800 text-white font-bold px-3 py-1.5 rounded-tl-xl shadow-lg text-sm transition-colors duration-300 group-hover:bg-orange-500">
+              <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-slate-300 group-hover:scale-110 transition duration-500"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+              <div class="absolute bottom-0 right-0 bg-slate-800 text-white font-bold px-3 py-1.5 rounded-tl-xl shadow-lg text-sm transition-colors duration-300 group-hover:bg-orange-500">
                 S/. {{ Number(product.price).toFixed(2) }}
               </div>
             </div>
@@ -390,7 +377,7 @@ onBeforeRouteLeave((to, from) => {
     </div>
 
     <div class="bg-white border-gray-200 flex flex-col z-[60] overflow-hidden transition-transform duration-300 ease-in-out
-             fixed inset-x-0 bottom-0 h-[85vh] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.15)]
+             fixed inset-x-0 bottom-0 h-[85vh] landscape:h-[98vh] landscape:rounded-t-xl rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.15)]
              lg:relative lg:w-96 lg:h-auto lg:rounded-2xl lg:border lg:shadow-xl lg:translate-y-0 lg:z-20 lg:!flex"
       :class="showMobileCart ? 'translate-y-0' : 'translate-y-full'">
       
@@ -406,6 +393,7 @@ onBeforeRouteLeave((to, from) => {
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5 sm:w-4 sm:h-4">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007Z" />
           </svg> Nueva
+
           <div v-if="activeTab === 'cart'" class="absolute bottom-0 left-0 w-full h-0.5 bg-orange-500"></div>
         </button>
         
@@ -433,83 +421,83 @@ onBeforeRouteLeave((to, from) => {
         </button>
       </div>
 
-      <div v-if="activeTab === 'cart'" class="flex-1 flex flex-col overflow-hidden bg-white">
-        <div class="flex-1 overflow-y-auto p-4 space-y-3">
-          <div v-if="store.cart.length === 0" class="flex flex-col items-center justify-center h-full text-slate-400 opacity-60">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="w-20 h-20 mb-4 text-slate-300">
+      <div v-if="activeTab === 'cart'" class="flex-1 flex flex-col overflow-hidden landscape:overflow-y-auto bg-white min-h-0">
+        
+        <div class="flex-1 overflow-y-auto landscape:overflow-visible p-4 landscape:p-2 space-y-3 custom-scroll">
+          <div v-if="store.cart.length === 0" class="flex flex-col items-center justify-center h-full text-slate-400 opacity-60 min-h-[120px]">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="w-16 h-16 sm:w-20 sm:h-20 mb-2 text-slate-300">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
             </svg>
-            <p class="font-medium text-lg">El carrito está vacío</p>
+            <p class="font-medium text-base sm:text-lg">El carrito está vacío</p>
           </div>
 
           <div v-for="item in store.cart" :key="item.id"
             class="flex justify-between items-center group bg-white p-3 rounded-xl border border-gray-100 shadow-sm hover:border-orange-200 transition">
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 sm:gap-3">
               <img :src="item.image || 'https://placehold.co/100?text=?'"
-                class="w-12 h-12 rounded-lg object-cover bg-gray-100 border border-gray-200">
+                class="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover bg-gray-100 border border-gray-200 shrink-0">
               <div class="max-w-[120px] sm:max-w-[160px]">
-                <p class="text-sm font-bold text-slate-800 line-clamp-2 leading-tight" :title="item.name">{{ item.name }}</p>
-                <p class="text-xs text-slate-500 font-mono mt-0.5">S/. {{ item.price }} x {{ item.quantity }}</p>
+                <p class="text-xs sm:text-sm font-bold text-slate-800 line-clamp-2 leading-tight" :title="item.name">{{ item.name }}</p>
+                <p class="text-[10px] sm:text-xs text-slate-500 font-mono mt-0.5">S/. {{ item.price }} x {{ item.quantity }}</p>
               </div>
             </div>
 
-            <div class="flex items-center gap-2 bg-gray-100 rounded-lg p-1 shrink-0">
-              <button @click.stop="store.decreaseQuantity(item.id); triggerCartAnimation()" class="w-7 h-7 rounded-md bg-white text-slate-600 shadow-sm hover:text-red-500 hover:bg-red-50 transition font-bold">-</button>
-              <span class="text-slate-800 font-bold w-4 text-center text-sm">{{ item.quantity }}</span>
-              <button @click.stop="store.addToCart(item); triggerCartAnimation()" class="w-7 h-7 rounded-md bg-white text-slate-600 shadow-sm hover:text-emerald-500 hover:bg-emerald-50 transition font-bold">+</button>
+            <div class="flex items-center gap-1 sm:gap-2 bg-gray-100 rounded-lg p-1 shrink-0">
+              <button @click.stop="store.decreaseQuantity(item.id); triggerCartAnimation()" class="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-white text-slate-600 shadow-sm hover:text-red-500 hover:bg-red-50 transition font-bold">-</button>
+              <span class="text-slate-800 font-bold w-4 text-center text-xs sm:text-sm">{{ item.quantity }}</span>
+              <button @click.stop="store.addToCart(item); triggerCartAnimation()" class="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-white text-slate-600 shadow-sm hover:text-emerald-500 hover:bg-emerald-50 transition font-bold">+</button>
             </div>
-            
           </div>
         </div>
 
-        <div class="p-6 bg-gray-50 border-t border-gray-200">
-          <div class="flex justify-between mb-2 text-sm text-slate-500 font-medium">
+        <div class="p-4 sm:p-6 landscape:p-3 bg-gray-50 border-t border-gray-200 shrink-0">
+          <div class="flex justify-between mb-1 sm:mb-2 text-xs sm:text-sm text-slate-500 font-medium">
             <span>Subtotal</span><span>S/. {{ store.totalPrice.toFixed(2) }}</span>
           </div>
-          <div class="flex justify-between mb-4 text-2xl font-bold text-slate-800">
+          <div class="flex justify-between mb-2 sm:mb-4 text-lg sm:text-2xl font-bold text-slate-800">
             <span>Total</span>
             <span class="text-emerald-600 transition-all duration-300" :class="{ 'text-flash': cartPulse }">
               S/. {{ store.totalPrice.toFixed(2) }}
             </span>
           </div>
 
-          <div class="mb-3">
-            <button v-if="!isTakeawayActive" @click="openTakeawayModal" class="w-full bg-slate-800 hover:bg-slate-900 text-white px-4 py-3 rounded-xl font-bold transition-colors text-sm shadow-sm">
+          <div class="mb-2 sm:mb-3">
+            <button v-if="!isTakeawayActive" @click="openTakeawayModal" class="w-full bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 sm:py-3 rounded-xl font-bold transition-colors text-xs sm:text-sm shadow-sm">
               Nuevo Pedido: Para Llevar
             </button>
-            <div v-else class="bg-blue-50 border border-blue-200 p-3 rounded-xl flex items-center justify-between shadow-sm">
+            <div v-else class="bg-blue-50 border border-blue-200 p-2 sm:p-3 rounded-xl flex items-center justify-between shadow-sm">
               <div>
                 <span class="text-blue-600 font-bold block text-[10px] uppercase tracking-wider">Modo Activo</span>
-                <span class="text-slate-800 font-bold text-sm">Llevar: {{ takeawayCustomer }}</span>
+                <span class="text-slate-800 font-bold text-xs sm:text-sm">Llevar: {{ takeawayCustomer }}</span>
               </div>
               <button @click="cancelTakeaway" class="text-slate-500 hover:text-red-600 font-bold px-3 py-1.5 border border-slate-200 hover:border-red-200 bg-white rounded-lg transition-colors text-xs">Cancelar</button>
             </div>
           </div>
 
-          <div v-if="!isTakeawayActive" class="mb-4 bg-white p-2.5 rounded-xl border-2 transition-all duration-300"
+          <div v-if="!isTakeawayActive" class="mb-2 sm:mb-4 bg-white p-1.5 sm:p-2.5 rounded-xl border-2 transition-all duration-300"
             :class="!mesaSeleccionada && store.cart.length > 0 ? 'border-red-300 shadow-md shadow-red-500/10' : 'border-gray-200 shadow-sm'">
-            <label class="block text-[10px] font-black uppercase tracking-widest mb-2 px-1"
+            <label class="block text-[9px] font-black uppercase tracking-widest mb-1 sm:mb-1.5 px-1"
               :class="!mesaSeleccionada && store.cart.length > 0 ? 'text-red-500' : 'text-slate-400'">
               {{ !mesaSeleccionada ? '[!] Obligatorio: Asignar a destino' : 'Destino de la Orden:' }}
             </label>
-            <button @click="showTableModal = true" class="w-full bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-800 p-2.5 rounded-lg flex items-center justify-between transition-colors group">
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded bg-slate-200 group-hover:bg-emerald-200 text-slate-600 group-hover:text-emerald-700 flex items-center justify-center font-black text-xs transition-colors">{{ mesaSeleccionada ? mesaSeleccionada.icon : '?' }}</div>
-                <span class="font-bold text-sm" :class="!mesaSeleccionada && store.cart.length > 0 ? 'text-red-500 animate-pulse' : ''">{{ mesaSeleccionada ? mesaSeleccionada.name : 'Seleccionar Mesa' }}</span>
+            <button @click="showTableModal = true" class="w-full bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-800 p-2 sm:p-2.5 rounded-lg flex items-center justify-between transition-colors group">
+              <div class="flex items-center gap-2 sm:gap-3">
+                <div class="w-7 h-7 sm:w-8 sm:h-8 rounded bg-slate-200 group-hover:bg-emerald-200 text-slate-600 group-hover:text-emerald-700 flex items-center justify-center font-black text-xs transition-colors shrink-0">{{ mesaSeleccionada ? mesaSeleccionada.icon : '?' }}</div>
+                <span class="font-bold text-xs sm:text-sm truncate" :class="!mesaSeleccionada && store.cart.length > 0 ? 'text-red-500 animate-pulse' : ''">{{ mesaSeleccionada ? mesaSeleccionada.name : 'Seleccionar Mesa' }}</span>
               </div>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors shrink-0">
                 <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
               </svg>
             </button>
           </div>
 
-          <div class="flex gap-3 mt-4">
-            <button @click="handleCancelCart" class="flex-1 bg-red-50 text-red-500 border-2 border-red-200 hover:bg-red-100 py-3 rounded-xl font-bold transition-colors shadow-sm flex items-center justify-center gap-2 active:scale-95">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+          <div class="flex gap-2 sm:gap-3 mt-1 sm:mt-0">
+            <button @click="handleCancelCart" class="flex-1 bg-red-50 text-red-500 border-2 border-red-200 hover:bg-red-100 py-2 sm:py-3 rounded-xl font-bold transition-colors shadow-sm flex items-center justify-center gap-1 sm:gap-2 active:scale-95 text-xs sm:text-base">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 sm:w-5 sm:h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
               <span class="lg:hidden truncate">{{ store.cart.length === 0 ? 'Cerrar' : 'Cancelar' }}</span>
               <span class="hidden lg:inline">Cancelar</span>
             </button>
-            <button @click="handleCheckout()" :disabled="!canCheckout" class="flex-1 font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2" :class="[canCheckout ? 'bg-emerald-500 hover:bg-emerald-600 text-white active:scale-95 shadow-emerald-500/30' : 'bg-gray-300 text-gray-400 cursor-not-allowed shadow-none', { 'cart-bump-desktop': cartPulse && canCheckout }]">
+            <button @click="handleCheckout()" :disabled="!canCheckout" class="flex-1 font-bold py-2 sm:py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-xs sm:text-base" :class="[canCheckout ? 'bg-emerald-500 hover:bg-emerald-600 text-white active:scale-95 shadow-emerald-500/30' : 'bg-gray-300 text-gray-400 cursor-not-allowed shadow-none', { 'cart-bump-desktop': cartPulse && canCheckout }]">
               Enviar
             </button>
           </div>

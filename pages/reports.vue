@@ -303,10 +303,12 @@ function getTurnoColor(turno) {
           </svg>
         </div>
         <div class="flex items-baseline gap-1.5 text-slate-700">
-          <span class="font-mono font-black text-xl md:text-2xl tracking-widest">
-            {{ currentTime.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) }}
-          </span>
-        </div>
+  <ClientOnly>
+    <span class="font-mono font-black text-xl md:text-2xl tracking-widest">
+      {{ currentTime.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) }}
+    </span>
+  </ClientOnly>
+</div>
       </div>
     </div>
 
@@ -500,20 +502,20 @@ function getTurnoColor(turno) {
         </div>
       </div>
 
-      <div class="hidden md:block bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden relative">
-        <table class="w-full text-left border-collapse">
+      <div class="hidden md:block bg-white rounded-2xl border border-gray-200 shadow-sm overflow-x-auto relative custom-scroll">
+        <table class="w-full text-left border-collapse min-w-[850px]">
           <thead>
-            <tr class="bg-gray-50 border-b border-gray-100 text-sm text-slate-500">
-              <th class="p-4 w-10 text-center">
+            <tr class="bg-gray-50 border-b border-gray-100 text-xs lg:text-sm text-slate-500 whitespace-nowrap">
+              <th class="p-3 lg:p-4 w-10 text-center">
                 <input type="checkbox" v-model="allSelected" class="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500 cursor-pointer">
               </th>
-              <th class="p-4 font-bold w-24 lg:w-32">Ticket</th>
-              <th class="p-4 font-bold w-20 text-center">Turno</th>
-              <th class="p-4 font-bold w-24 lg:w-32">Hora</th>
-              <th class="p-4 font-bold w-32 lg:w-48">Mesa/Cliente</th>
-              <th class="p-4 font-bold">Descripción</th>
-              <th class="p-4 font-bold text-center w-32 lg:w-48">Estado</th>
-              <th class="p-4 font-bold text-right w-24 lg:w-32">Monto</th>
+              <th class="p-3 lg:p-4 font-bold w-20 lg:w-24">Ticket</th>
+              <th class="p-3 lg:p-4 font-bold w-16 lg:w-20 text-center">Turno</th>
+              <th class="p-3 lg:p-4 font-bold w-24 lg:w-32">Hora</th>
+              <th class="p-3 lg:p-4 font-bold w-32 lg:w-48">Mesa/Cliente</th>
+              <th class="p-3 lg:p-4 font-bold">Descripción</th>
+              <th class="p-3 lg:p-4 font-bold text-center w-32 lg:w-40">Estado</th>
+              <th class="p-3 lg:p-4 font-bold text-right w-24 lg:w-32">Monto</th>
             </tr>
           </thead>
           <tbody>
@@ -522,26 +524,26 @@ function getTurnoColor(turno) {
                 'bg-orange-50': selectedOrders.includes(order.id),
                 'bg-red-50/40 opacity-80': ['Cancelado', 'Anulado', 'Rechazado'].includes(order.status) 
               }">
-              <td class="p-4 text-center">
+              <td class="p-3 lg:p-4 text-center">
                 <input type="checkbox" :value="order.id" v-model="selectedOrders" class="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500 cursor-pointer">
               </td>
-              <td class="p-4 font-mono font-bold text-slate-700">#{{ order.dailyTicket || order.id }}</td>
-              <td class="p-4 text-center">
-                <span :class="getTurnoColor(order.turno)" class="font-black px-2.5 py-1 rounded-lg text-xs border">
+              <td class="p-3 lg:p-4 font-mono font-bold text-slate-700 whitespace-nowrap">#{{ order.dailyTicket || order.id }}</td>
+              <td class="p-3 lg:p-4 text-center whitespace-nowrap">
+                <span :class="getTurnoColor(order.turno)" class="font-black inline-block px-2.5 py-1 rounded-lg text-xs border">
                   T-{{ order.turno || 1 }}
                 </span>
               </td>
-              <td class="p-4 text-sm font-medium text-slate-500 whitespace-nowrap">{{ formatTime(order.createdAt) }}</td>
-              <td class="p-4 font-bold text-slate-800 text-sm whitespace-nowrap truncate">{{ order.table || 'Caja' }}</td>
-              <td class="p-4 text-slate-600 text-sm max-w-md xl:max-w-xl truncate" :class="{ 'line-through opacity-70': ['Cancelado', 'Anulado', 'Rechazado'].includes(order.status) }" :title="order.description">{{ order.description || 'Venta de Salón' }}</td>
+              <td class="p-3 lg:p-4 text-xs lg:text-sm font-medium text-slate-500 whitespace-nowrap">{{ formatTime(order.createdAt) }}</td>
+              <td class="p-3 lg:p-4 font-bold text-slate-800 text-xs lg:text-sm whitespace-nowrap truncate max-w-[120px] lg:max-w-none">{{ order.table || 'Caja' }}</td>
+              <td class="p-3 lg:p-4 text-slate-600 text-xs lg:text-sm max-w-[150px] lg:max-w-[250px] xl:max-w-md truncate" :class="{ 'line-through opacity-70': ['Cancelado', 'Anulado', 'Rechazado'].includes(order.status) }" :title="order.description">{{ order.description || 'Venta de Salón' }}</td>
 
-              <td class="py-3 text-center px-2">
+              <td class="py-2 lg:py-3 text-center px-2 whitespace-nowrap">
                 <div v-if="['Cancelado', 'Anulado', 'Rechazado'].includes(order.status)" class="bg-red-100 text-red-600 font-black text-[10px] uppercase tracking-widest px-2 py-1.5 rounded-lg border border-red-200 inline-block">
                   Anulado
                 </div>
 
                 <select v-else v-model="order.paymentStatus" @change="actualizarPago(order)"
-                  class="w-full font-bold text-xs px-2 py-1.5 rounded-lg outline-none cursor-pointer transition shadow-sm border appearance-none text-center focus:ring-2"
+                  class="w-full font-bold text-[11px] lg:text-xs px-1 lg:px-2 py-1.5 rounded-lg outline-none cursor-pointer transition shadow-sm border appearance-none text-center focus:ring-2"
                   :class="{
                     'bg-emerald-50 text-emerald-700 border-emerald-200 focus:ring-emerald-200': order.paymentStatus === 'Efectivo',
                     'bg-purple-50 text-purple-700 border-purple-200 focus:ring-purple-200': order.paymentStatus === 'Yape / Plin' || order.paymentStatus === 'Tarjeta',
@@ -556,7 +558,7 @@ function getTurnoColor(turno) {
                 </select>
               </td>
 
-              <td class="p-4 text-right font-black whitespace-nowrap" :class="['Cancelado', 'Anulado', 'Rechazado'].includes(order.status) ? 'text-red-500' : 'text-slate-800'">
+              <td class="p-3 lg:p-4 text-right font-black whitespace-nowrap text-xs lg:text-base" :class="['Cancelado', 'Anulado', 'Rechazado'].includes(order.status) ? 'text-red-500' : 'text-slate-800'">
                 <span v-if="['Cancelado', 'Anulado', 'Rechazado'].includes(order.status)" class="text-[10px] font-bold text-slate-400 line-through mr-1">S/. {{ Number(order.total).toFixed(2) }}</span>
                 S/. {{ ['Cancelado', 'Anulado', 'Rechazado'].includes(order.status) ? '0.00' : Number(order.total).toFixed(2) }}
               </td>
