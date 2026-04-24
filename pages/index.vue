@@ -29,7 +29,7 @@ const cajaEsperada = computed(() => store.stats.totalEfectivo)
 const yapeEsperado = computed(() => store.stats.totalDigital)
 const porCobrarEsperado = computed(() => store.stats.totalPorCobrar)
 
-// 🚀 LÓGICA DE CIERRE MEJORADA
+//  LÓGICA DE CIERRE MEJORADA
 const procesarCierre = async (datosArqueo) => {
   try {
     // 1. Cerramos el modal INMEDIATAMENTE para evitar el salto de números

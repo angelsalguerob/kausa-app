@@ -1,12 +1,13 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue' 
 import { usePosStore } from '../stores/pos'
-import { onBeforeRouteLeave, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 
 const store = usePosStore()
 const router = useRouter()
 
-const isMobileMenuOpen = useState('mobileMenuOpen', () => false)
+const isMobileMenuOpen = ref(false)
+
 let radarInterval = null
 
 onMounted(() => {

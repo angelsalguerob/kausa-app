@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePosStore } from '../stores/pos'
+import { onBeforeRouteLeave } from 'vue-router'
 
 const store = usePosStore()
 const router = useRouter()
@@ -280,9 +281,17 @@ function confirmCancelPos() {
     loadActiveOrders()
   })
 }
+onBeforeRouteLeave((to, from) => {
+  // Si el panel inferior (Carrito/Cocina/Listos) está abierto...
+  if (showMobileCart.value) {
+    showMobileCart.value = false // 1. Lo cerramos
+    return false // 2. Cancelamos la navegación para que no salga del POS
+  }
+  
+  // Si el panel ya estaba cerrado, dejamos que la navegación fluya normal
+  return true 
+})
 
-// NOTA: Se ha eliminado la trampa del botón Atrás para mantener
-// la estabilidad del router y la seguridad de las sesiones de Nuxt.
 </script>
 
 <template>
@@ -792,22 +801,7 @@ function confirmCancelPos() {
       </form>
     </div>
   </div>
-  <div v-if="showExitModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="showExitModal = false"></div>
-    <div class="relative bg-white rounded-3xl border border-gray-100 shadow-2xl max-w-sm w-full p-8 text-center transform transition-all">
-      <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500 shadow-inner border-4 border-red-100">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-10 h-10">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-        </svg>
-      </div>
-      <h3 class="text-2xl font-black text-slate-800 mb-2">¿Salir de la App?</h3>
-      <p class="text-slate-500 mb-6 text-sm">Estás a punto de salir del Punto de Venta. ¿Deseas continuar?</p>
-      <div class="flex gap-3">
-        <button @click="showExitModal = false" class="flex-1 bg-white border border-gray-300 text-slate-600 font-bold py-3 rounded-xl hover:bg-gray-50 transition shadow-sm">Quedarme</button>
-        <button @click="confirmExit" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl shadow-md transition active:scale-95">Sí, Salir</button>
-      </div>
-    </div>
-  </div>
+  
 </template>
 
 <style scoped>
