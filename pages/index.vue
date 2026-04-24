@@ -1,3 +1,4 @@
+//pages/index.vue
 <script setup>
 import { onMounted, onUnmounted, computed, ref, nextTick, watch } from "vue"
 import { useRouter } from "vue-router"
@@ -222,7 +223,10 @@ async function enviarMensajeAI(mensajeOculto = null) {
   scrollToBottom()
 
   const analizarInteligenciaNegocio = (listaPedidos) => {
-    if (!listaPedidos || listaPedidos.length === 0) {
+    // 🚀 FIX: Filtramos las órdenes anuladas para que no ensucien la estadística
+    const pedidosValidos = listaPedidos.filter(o => !['Anulado', 'Cancelado', 'Rechazado'].includes(o.status));
+
+    if (!pedidosValidos || pedidosValidos.length === 0) {
       return { topPlato: "Ninguno", bottomPlato: "Ninguno", mesaTop: "Ninguna", pagoTop: "Ninguno", deudaFiada: 0 };
     }
 
@@ -231,7 +235,7 @@ async function enviarMensajeAI(mensajeOculto = null) {
     const conteoPagos = {};
     let deudaTotal = 0;
 
-    listaPedidos.forEach(order => {
+    pedidosValidos.forEach(order => {
       const descripcion = order.description || 'Venta General';
       descripcion.split(',').forEach(item => {
         const match = item.trim().match(/^(\d+)\s*[xX]\s+(.+)$/);
@@ -269,7 +273,7 @@ async function enviarMensajeAI(mensajeOculto = null) {
   };
 
   const clientesLlevarHoy = store.orders
-    .filter(o => o.table && o.table.toLowerCase().includes('llevar'))
+    .filter(o => o.table && o.table.toLowerCase().includes('llevar') && !['Anulado', 'Cancelado'].includes(o.status)) // 🚀 FIX
     .map(o => {
       const hora = o.createdAt ? new Date(o.createdAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: true }) : 'Hace un rato';
       return `${o.table.replace(/para llevar\s*-\s*/i, '').trim()} (${hora})`;
@@ -309,17 +313,21 @@ async function enviarMensajeAI(mensajeOculto = null) {
 
     const [reporteHoy, ...resultadosSemana] = await Promise.all([promesaHoy, ...promesasDias]);
 
-    if (reporteHoy && reporteHoy.length > 0) {
-      analisisHoyReal = analizarInteligenciaNegocio(reporteHoy);
+    // 🚀 FIX: Filtramos las anuladas
+    const validReporteHoy = (reporteHoy || []).filter(o => !['Anulado', 'Cancelado', 'Rechazado'].includes(o.status));
+    if (validReporteHoy.length > 0) {
+      analisisHoyReal = analizarInteligenciaNegocio(validReporteHoy);
     }
 
-    const reporteAyer = resultadosSemana[0] || [];
+    const reporteAyer = (resultadosSemana[0] || []).filter(o => !['Anulado', 'Cancelado', 'Rechazado'].includes(o.status));
 
-    resultadosSemana.forEach((diaReporte, index) => {
+    resultadosSemana.forEach((diaData, index) => {
+      // 🚀 FIX: Filtramos cada día de la semana
+      const diaReporte = (diaData || []).filter(o => !['Anulado', 'Cancelado', 'Rechazado'].includes(o.status));
       let vDia = 0, pDia = 0;
       let intelDia = { topPlato: "Ninguno", bottomPlato: "Ninguno", mesaTop: "Ninguna", pagoTop: "Ninguno", deudaFiada: 0 };
 
-      if (diaReporte && diaReporte.length > 0) {
+      if (diaReporte.length > 0) {
         vDia = diaReporte.reduce((acc, order) => acc + (order.total || 0), 0);
         pDia = diaReporte.length;
         intelDia = analizarInteligenciaNegocio(diaReporte);
@@ -350,7 +358,7 @@ async function enviarMensajeAI(mensajeOculto = null) {
   }
 
   const resumenHoy = {
-    totalVentas: store.stats?.totalVentas || 0,
+    totalVentas: store.stats?.totalVentasDia || 0,
     totalPedidos: store.stats?.count || 0,
     fecha: hoy.toLocaleDateString('en-CA'),
     caserosLlevar: clientesLlevarHoy || "Aún no hay pedidos para llevar",

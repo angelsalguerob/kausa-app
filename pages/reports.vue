@@ -1,4 +1,3 @@
-//pages/reports.vue
 <script setup>
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { usePosStore } from '../stores/pos'
@@ -68,7 +67,6 @@ const allSelected = computed({
   }
 })
 
-
 function calcularMetricas() {
   let bruto = 0
   let efectivo = 0
@@ -76,16 +74,21 @@ function calcularMetricas() {
   let porCobrar = 0
 
   orders.value.forEach(order => {
-    const monto = Number(order.total)
+    // 🚀 FIX: Si está anulado, no suma nada a las métricas visuales
+    const isAnulado = ['Cancelado', 'Anulado', 'Rechazado'].includes(order.status)
+    const monto = isAnulado ? 0 : Number(order.total)
+    
     bruto += monto
-    const status = order.paymentStatus === 'Pagado' ? 'Efectivo' : order.paymentStatus
 
-    if (status === 'Efectivo') {
-      efectivo += monto
-    } else if (status === 'Yape / Plin' || status === 'Tarjeta') {
-      digital += monto
-    } else {
-      porCobrar += monto
+    if (!isAnulado) {
+      const status = order.paymentStatus === 'Pagado' ? 'Efectivo' : order.paymentStatus
+      if (status === 'Efectivo') {
+        efectivo += monto
+      } else if (status === 'Yape / Plin' || status === 'Tarjeta') {
+        digital += monto
+      } else {
+        porCobrar += monto
+      }
     }
   })
 
@@ -123,9 +126,8 @@ async function fetchOrders() {
   }
 }
 
-// 🚀 ACTUALIZACIÓN INDIVIDUAL (El combo desplegable)
+// ACTUALIZACIÓN INDIVIDUAL
 async function actualizarPago(orden) {
-  // Apagar la alerta global si se marca como pagado
   const estadosPagados = ['Efectivo', 'Yape / Plin', 'Tarjeta']
   if (estadosPagados.includes(orden.paymentStatus)) {
     store.apagarAlertaPagos()
@@ -143,11 +145,10 @@ async function actualizarPago(orden) {
   }
 }
 
-// 🚀 ACTUALIZACIÓN MASIVA (Botonera flotante)
+// ACTUALIZACIÓN MASIVA
 function bulkUpdatePayment(nuevoStatus) {
   if (selectedOrders.value.length === 0) return
 
-  // Apagar alerta global si es un método de pago válido
   const estadosPagados = ['Efectivo', 'Yape / Plin', 'Tarjeta']
   if (estadosPagados.includes(nuevoStatus)) {
     store.apagarAlertaPagos()
@@ -183,29 +184,27 @@ function exportToExcel() {
     return alert('No hay ventas registradas en esta fecha para exportar.');
   }
 
-  // 🚀 CAMBIO 1: Separamos Fecha y Hora en las cabeceras
   let csv = 'Ticket;Turno;Fecha;Hora;Mesa / Cliente;Cantidad;Producto;Entrada (Item 1);Segundo (Item 2);Bebida (Item 3);Postre (Item 4);Estado de Pago;Total Ticket (S/.)\n';
 
   orders.value.forEach(o => {
-    // 🚀 CAMBIO 2: Extraemos fecha y hora por separado
     const dateObj = new Date(o.createdAt);
-    const fechaOnly = dateObj.toLocaleDateString('es-PE'); // Ej: 19/04/2026
-    const horaOnly = dateObj.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: true }); // Ej: 09:17 a.m.
+    const fechaOnly = dateObj.toLocaleDateString('es-PE');
+    const horaOnly = dateObj.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: true });
 
     const ticketNum = o.dailyTicket || o.id;
-    // 🚀 CAMBIO 3: Formato T-1, T-2
     const turnoExcel = `T-${o.turno || 1}`;
     const destino = (o.table || 'Caja').replace(/;/g, '-');
-    const estadoPago = o.paymentStatus;
-    const totalTicket = Number(o.total).toFixed(2);
+    
+    // 🚀 FIX: Exportación segura de anulados
+    const isAnulado = ['Cancelado', 'Anulado', 'Rechazado'].includes(o.status);
+    const estadoPago = isAnulado ? 'ANULADO' : o.paymentStatus;
+    const totalTicket = isAnulado ? '0.00' : Number(o.total).toFixed(2);
 
-    // Si es un pedido simple (sin descripción)
     if (!o.description) {
       csv += `${ticketNum};${turnoExcel};${fechaOnly};${horaOnly};${destino};1;Venta de Salón;-;-;-;-;${estadoPago};${totalTicket}\n`;
       return;
     }
 
-    // Partimos el pedido por productos
     const productosEnElTicket = o.description.split(/,\s*(?![^\[]*\])/);
 
     productosEnElTicket.forEach(itemStr => {
@@ -216,14 +215,12 @@ function exportToExcel() {
       let bebida = '-';
       let postre = '-';
 
-      // Extraemos la cantidad (Ej: 2x Lomo)
       const qtyMatch = producto.match(/^(\d+)x\s+(.*)/);
       if (qtyMatch) {
         cantidad = qtyMatch[1];
         producto = qtyMatch[2];
       }
 
-      // Extraemos las opciones del menú (Ej: [Ceviche, Lomo, Sin bebida, Flan])
       const detailsMatch = producto.match(/(.*?)\s*\[(.*?)\]$/);
       if (detailsMatch) {
         producto = detailsMatch[1].trim();
@@ -234,15 +231,11 @@ function exportToExcel() {
         if (partesCombo[3]) postre = partesCombo[3].trim();
       }
 
-      // Quitamos cualquier punto y coma rebelde del nombre para no romper Excel
       producto = producto.replace(/;/g, '');
-
-      // 🚀 EL BUG ARREGLADO: Añadimos ${turnoExcel}, ${fechaOnly} y ${horaOnly} para que no se corran las columnas
       csv += `${ticketNum};${turnoExcel};${fechaOnly};${horaOnly};${destino};${cantidad};${producto};${entrada};${segundo};${bebida};${postre};${estadoPago};${totalTicket}\n`;
     });
   });
 
-  // Exportamos con codificación UTF-8 para que las tildes (ñ, á) se vean perfectas
   const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -273,7 +266,6 @@ onUnmounted(() => {
   if (clockInterval) clearInterval(clockInterval)
 })
 
-// Función auxiliar para seleccionar una orden en móvil
 function toggleMobileSelection(orderId) {
   const index = selectedOrders.value.indexOf(orderId)
   if (index === -1) {
@@ -283,15 +275,14 @@ function toggleMobileSelection(orderId) {
   }
 }
 
-// 🚀 NUEVO: Función para rotar los 5 colores de los turnos
 function getTurnoColor(turno) {
   const num = Number(turno) || 1
   const colores = [
-    'bg-sky-50 text-sky-600 border-sky-200',         // Turno 5, 10...
-    'bg-indigo-50 text-indigo-600 border-indigo-200', // Turno 1, 6...
-    'bg-emerald-50 text-emerald-600 border-emerald-200', // Turno 2, 7...
-    'bg-amber-50 text-amber-600 border-amber-200',   // Turno 3, 8...
-    'bg-rose-50 text-rose-600 border-rose-200',      // Turno 4, 9...
+    'bg-sky-50 text-sky-600 border-sky-200', 
+    'bg-indigo-50 text-indigo-600 border-indigo-200', 
+    'bg-emerald-50 text-emerald-600 border-emerald-200',
+    'bg-amber-50 text-amber-600 border-amber-200', 
+    'bg-rose-50 text-rose-600 border-rose-200', 
   ]
   return colores[num % 5]
 }
@@ -399,8 +390,8 @@ function getTurnoColor(turno) {
           </div>
           <div class="p-2 md:p-2.5 bg-emerald-100 rounded-xl text-emerald-600 relative z-10">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 md:w-6 md:h-6">
-  <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-</svg>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+            </svg>
           </div>
         </div>
 
@@ -448,7 +439,10 @@ function getTurnoColor(turno) {
 
         <div v-for="order in orders" :key="order.id"
           class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm relative overflow-hidden transition-all duration-200"
-          :class="{ 'ring-2 ring-orange-500 bg-orange-50/30': selectedOrders.includes(order.id) }"
+          :class="{ 
+            'ring-2 ring-orange-500 bg-orange-50/30': selectedOrders.includes(order.id),
+            'opacity-70 bg-red-50/30': ['Cancelado', 'Anulado', 'Rechazado'].includes(order.status)
+          }"
           @click="toggleMobileSelection(order.id)">
 
           <div class="absolute top-4 right-4 z-10" @click.stop>
@@ -470,13 +464,18 @@ function getTurnoColor(turno) {
             </div>
           </div>
 
-          <p class="text-slate-600 text-sm mb-4 line-clamp-2 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+          <p class="text-slate-600 text-sm mb-4 line-clamp-2 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100" :class="{ 'line-through opacity-70': ['Cancelado', 'Anulado', 'Rechazado'].includes(order.status) }">
             {{ order.description || 'Venta de Salón' }}
           </p>
 
           <div class="flex justify-between items-center pt-3 border-t border-gray-100" @click.stop>
             <div class="flex-1 max-w-[140px]">
-              <select v-model="order.paymentStatus" @change="actualizarPago(order)"
+              
+              <div v-if="['Cancelado', 'Anulado', 'Rechazado'].includes(order.status)" class="bg-red-50 text-red-600 border border-red-200 font-black text-[10px] uppercase tracking-widest px-2 py-2 rounded-xl text-center">
+                Anulado
+              </div>
+              
+              <select v-else v-model="order.paymentStatus" @change="actualizarPago(order)"
                 class="w-full font-bold text-xs px-2 py-2 rounded-xl outline-none cursor-pointer transition shadow-sm border appearance-none text-center"
                 :class="{
                   'bg-emerald-50 text-emerald-700 border-emerald-200': order.paymentStatus === 'Efectivo',
@@ -491,7 +490,12 @@ function getTurnoColor(turno) {
                 <option value="Fiado">Fiado</option>
               </select>
             </div>
-            <span class="font-black text-lg text-slate-800 shrink-0">S/. {{ Number(order.total).toFixed(2) }}</span>
+            <div class="flex flex-col text-right shrink-0">
+              <span v-if="['Cancelado', 'Anulado', 'Rechazado'].includes(order.status)" class="text-[10px] font-bold text-slate-400 line-through">S/. {{ Number(order.total).toFixed(2) }}</span>
+              <span class="font-black text-lg" :class="['Cancelado', 'Anulado', 'Rechazado'].includes(order.status) ? 'text-red-500' : 'text-slate-800'">
+                S/. {{ ['Cancelado', 'Anulado', 'Rechazado'].includes(order.status) ? '0.00' : Number(order.total).toFixed(2) }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -514,7 +518,10 @@ function getTurnoColor(turno) {
           </thead>
           <tbody>
             <tr v-for="order in orders" :key="order.id" class="border-b border-gray-50 hover:bg-orange-50/50 transition"
-              :class="{ 'bg-orange-50': selectedOrders.includes(order.id) }">
+              :class="{ 
+                'bg-orange-50': selectedOrders.includes(order.id),
+                'bg-red-50/40 opacity-80': ['Cancelado', 'Anulado', 'Rechazado'].includes(order.status) 
+              }">
               <td class="p-4 text-center">
                 <input type="checkbox" :value="order.id" v-model="selectedOrders" class="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500 cursor-pointer">
               </td>
@@ -526,10 +533,14 @@ function getTurnoColor(turno) {
               </td>
               <td class="p-4 text-sm font-medium text-slate-500 whitespace-nowrap">{{ formatTime(order.createdAt) }}</td>
               <td class="p-4 font-bold text-slate-800 text-sm whitespace-nowrap truncate">{{ order.table || 'Caja' }}</td>
-              <td class="p-4 text-slate-600 text-sm max-w-md xl:max-w-xl truncate" :title="order.description">{{ order.description || 'Venta de Salón' }}</td>
+              <td class="p-4 text-slate-600 text-sm max-w-md xl:max-w-xl truncate" :class="{ 'line-through opacity-70': ['Cancelado', 'Anulado', 'Rechazado'].includes(order.status) }" :title="order.description">{{ order.description || 'Venta de Salón' }}</td>
 
               <td class="py-3 text-center px-2">
-                <select v-model="order.paymentStatus" @change="actualizarPago(order)"
+                <div v-if="['Cancelado', 'Anulado', 'Rechazado'].includes(order.status)" class="bg-red-100 text-red-600 font-black text-[10px] uppercase tracking-widest px-2 py-1.5 rounded-lg border border-red-200 inline-block">
+                  Anulado
+                </div>
+
+                <select v-else v-model="order.paymentStatus" @change="actualizarPago(order)"
                   class="w-full font-bold text-xs px-2 py-1.5 rounded-lg outline-none cursor-pointer transition shadow-sm border appearance-none text-center focus:ring-2"
                   :class="{
                     'bg-emerald-50 text-emerald-700 border-emerald-200 focus:ring-emerald-200': order.paymentStatus === 'Efectivo',
@@ -545,7 +556,10 @@ function getTurnoColor(turno) {
                 </select>
               </td>
 
-              <td class="p-4 text-right font-black text-slate-800 whitespace-nowrap">S/. {{ Number(order.total).toFixed(2) }}</td>
+              <td class="p-4 text-right font-black whitespace-nowrap" :class="['Cancelado', 'Anulado', 'Rechazado'].includes(order.status) ? 'text-red-500' : 'text-slate-800'">
+                <span v-if="['Cancelado', 'Anulado', 'Rechazado'].includes(order.status)" class="text-[10px] font-bold text-slate-400 line-through mr-1">S/. {{ Number(order.total).toFixed(2) }}</span>
+                S/. {{ ['Cancelado', 'Anulado', 'Rechazado'].includes(order.status) ? '0.00' : Number(order.total).toFixed(2) }}
+              </td>
             </tr>
           </tbody>
         </table>

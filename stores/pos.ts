@@ -1,3 +1,4 @@
+// stores/pos.ts
 import { defineStore } from 'pinia'
 
 export interface Product {
@@ -215,7 +216,10 @@ export const usePosStore = defineStore('pos', {
         let mapaTurnos: Record<number, number> = {}
 
         ordersData.forEach(o => {
-          const monto = Number(o.total)
+          // FIX: Si está anulado o rechazado, su valor en la caja es CERO (0.00)
+          const isAnulado = ['Cancelado', 'Anulado', 'Rechazado'].includes(o.status)
+          const monto = isAnulado ? 0 : Number(o.total)
+          
           ventasDiaCompleto += monto
           const t = o.turno || 1
           if (!mapaTurnos[t]) mapaTurnos[t] = 0
@@ -240,14 +244,18 @@ export const usePosStore = defineStore('pos', {
         let ventasBrutasTurno = 0
 
         ordenesDelTurno.forEach((order) => {
-          const monto = Number(order.total)
+          // FIX: Ignorar anulados en la suma de Efectivo/Yape/Fiado
+          const isAnulado = ['Cancelado', 'Anulado', 'Rechazado'].includes(order.status)
+          const monto = isAnulado ? 0 : Number(order.total)
+          
           ventasBrutasTurno += monto
 
-          const status = order.paymentStatus === 'Pagado' ? 'Efectivo' : order.paymentStatus
-
-          if (status === 'Efectivo') efectivo += monto
-          else if (status === 'Yape / Plin' || status === 'Tarjeta') digital += monto
-          else porCobrar += monto
+          if (!isAnulado) {
+            const status = order.paymentStatus === 'Pagado' ? 'Efectivo' : order.paymentStatus
+            if (status === 'Efectivo') efectivo += monto
+            else if (status === 'Yape / Plin' || status === 'Tarjeta') digital += monto
+            else porCobrar += monto
+          }
         })
 
         this.stats.totalVentas = ventasBrutasTurno
