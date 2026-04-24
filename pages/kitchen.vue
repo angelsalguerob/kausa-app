@@ -1,12 +1,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { usePosStore } from '../stores/pos'
-import { createClient } from '@supabase/supabase-js'
 
-// 1. Configuramos la conexión
-const supabaseUrl = 'https://xzmcstdhkvbfceobzbbn.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6bWNzdGRoa3ZiZmNlb2J6YmJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3NjE3NzUsImV4cCI6MjA4MTMzNzc3NX0.URZyoEYjY302xinc77q0Y7F4rKXPJYAprD86ySTERhw'
-const supabase = createClient(supabaseUrl, supabaseKey)
+const supabase = useDatabase()
 
 // MEMORIA BLINDADA
 const cachedOrders = useState('kitchen-cache', () => [])
