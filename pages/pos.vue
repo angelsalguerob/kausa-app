@@ -1,9 +1,10 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { usePosStore } from '../stores/pos'
 
-
 const store = usePosStore()
+const router = useRouter()
 
 const showMobileCart = ref(false)
 
@@ -37,18 +38,14 @@ const filteredProducts = computed(() => {
 
 const activeTab = ref('cart')
 const activeOrders = ref([])
-// Memoria para evitar el efecto fantasma
 const processingIds = ref({})
 
 async function loadActiveOrders() {
   try {
     const data = await $fetch(`/api/orders/pos-active?_t=${Date.now()}`)
-    
-    // FIX FANTASMAS: Filtramos los que el mesero ya marcó como entregados o anulados
     activeOrders.value = data
       .filter(order => !processingIds.value[order.id])
       .reverse()
-      
   } catch (error) {
     console.error('Error cargando pedidos enviados', error)
   }
@@ -200,16 +197,13 @@ onMounted(() => {
   syncCatalog()
   loadActiveOrders()
   
-  // Refresca el catálogo cada 15 segundos
   syncInterval = setInterval(syncCatalog, 15000)
-  
-  //  Refresca las ÓRDENES cada 5 segundos (Magia en tiempo real)
   ordersInterval = setInterval(loadActiveOrders, 5000) 
 })
 
 onUnmounted(() => {
   if (syncInterval) clearInterval(syncInterval)
-  if (ordersInterval) clearInterval(ordersInterval) // Apagamos el motor al salir
+  if (ordersInterval) clearInterval(ordersInterval) 
 })
 
 const showModal = ref(false)
@@ -232,11 +226,7 @@ async function handleCheckout() {
     isTakeawayActive.value = false
     takeawayCustomer.value = ''
     
-    //  FIX 1 (UI OPTIMISTA): Metemos la orden al instante en la lista de activos
-    // para que la burbujita naranja aumente de golpe
     activeOrders.value.unshift(order)
-    
-    // Recargamos silenciosamente en el fondo por si acaso
     setTimeout(() => loadActiveOrders(), 1500)
   }
 }
@@ -247,16 +237,11 @@ function closeModal() {
 
 async function handleMarcarEntregado(order) {
   try {
-    // 1. AL INSTANTE: Lo metemos a la memoria ciega y lo borramos de la vista
     processingIds.value[order.id] = true
     activeOrders.value = activeOrders.value.filter(o => o.id !== order.id)
-
-    // 2. Usamos TU función original del store en vez del $fetch directo
     await store.marcarComoEntregado(order.id)
-
   } catch (error) {
     console.error('Error al entregar', error)
-    // Si la base de datos falla por algo, lo regresamos a la pantalla
     delete processingIds.value[order.id] 
     loadActiveOrders()
   }
@@ -296,44 +281,8 @@ function confirmCancelPos() {
   })
 }
 
-// ══════════════════════════════════════════════════
-// 🚀TRAMPA DE NAVEGACIÓN (MÉTODO CLÁSICO BLINDADO)
-// ══════════════════════════════════════════════════
-
-const isMobileMenuOpen = useState('mobileMenuOpen', () => false)
-const showExitModal = ref(false)
-let allowExit = false 
-
-onBeforeRouteLeave((to, from) => {
-  if (allowExit) return true
-
-  if (showMobileCart.value) {
-    showMobileCart.value = false
-    return false 
-  }
-
-  if (showExitModal.value) {
-    showExitModal.value = false
-    return false
-  }
-
-  if (!isMobileMenuOpen.value) {
-    isMobileMenuOpen.value = true
-    return false
-  }
-
-  if (isMobileMenuOpen.value) {
-    showExitModal.value = true
-    return false
-  }
-})
-
-function confirmExit() {
-  allowExit = true
-  showExitModal.value = false
-  isMobileMenuOpen.value = false
-  router.push('/') 
-}
+// NOTA: Se ha eliminado la trampa del botón Atrás para mantener
+// la estabilidad del router y la seguridad de las sesiones de Nuxt.
 </script>
 
 <template>
