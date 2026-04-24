@@ -298,38 +298,39 @@ onBeforeRouteLeave((to, from) => {
   <div class="flex h-full lg:gap-6 relative overflow-hidden lg:overflow-visible">
     <div class="flex-1 flex flex-col overflow-hidden pb-24 lg:pb-0 w-full">
 
-      <header class="mb-4 lg:mb-6 landscape:mb-2 flex flex-col gap-3 lg:gap-4 landscape:gap-1.5 shrink-0">
+      <header class="mb-6 flex flex-col gap-4">
         <div class="relative shadow-sm flex items-center">
-          <span class="absolute left-3 lg:left-4 text-slate-400 pointer-events-none">
+          <span class="absolute left-4 text-slate-400 pointer-events-none">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
-              stroke="currentColor" class="w-4 h-4 lg:w-5 lg:h-5">
+              stroke="currentColor" class="w-5 h-5">
               <path stroke-linecap="round" stroke-linejoin="round"
                 d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
             </svg>
           </span>
 
           <input v-model="searchQuery" type="text" placeholder="Buscar producto..."
-            class="w-full bg-white text-slate-700 pl-10 lg:pl-11 pr-10 lg:pr-12 py-2.5 lg:py-4 landscape:py-1.5 rounded-lg lg:rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition text-sm lg:text-base">
+            class="w-full bg-white text-slate-700 pl-11 pr-12 py-4 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition">
 
           <button @click="syncCatalog"
-            class="absolute right-2 lg:right-3 p-1.5 lg:p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-all"
+            class="absolute right-3 p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-all"
             title="Sincronizar Catalogo">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
-              stroke="currentColor" class="w-4 h-4 lg:w-5 lg:h-5" :class="{ 'animate-spin text-orange-500': isSyncingCatalog }">
+              stroke="currentColor" class="w-5 h-5" :class="{ 'animate-spin text-orange-500': isSyncingCatalog }">
               <path stroke-linecap="round" stroke-linejoin="round"
                 d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
             </svg>
           </button>
         </div>
 
-        <div class="flex gap-2 lg:gap-3 overflow-x-auto pb-1 lg:pb-2 scrollbar-hide">
+        <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
           <button v-for="cat in filterCategories" :key="cat" @click="selectedCategory = cat"
-            class="px-4 py-1.5 lg:px-5 lg:py-2 landscape:py-1 landscape:px-3 landscape:text-[11px] rounded-lg lg:rounded-xl text-xs lg:text-sm font-bold transition whitespace-nowrap"
+            class="px-5 py-2 rounded-xl text-sm font-bold transition whitespace-nowrap"
             :class="selectedCategory === cat ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'bg-white text-slate-600 border border-gray-200 shadow-sm'">
             {{ cat }}
           </button>
         </div>
       </header>
+
       <div class="flex-1 overflow-y-auto pr-2 pb-4">
         <div v-if="filteredProducts.length === 0"
           class="flex flex-col items-center justify-center py-16 text-slate-400">
@@ -342,7 +343,7 @@ onBeforeRouteLeave((to, from) => {
           <p class="text-sm">Prueba con otro termino de busqueda o categoria.</p>
         </div>
 
-        <div class="grid grid-cols-2 landscape:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4 p-3 lg:p-4">
+        <div class="grid grid-cols-2 landscape:grid-cols-4 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4 p-3 lg:p-4">
           <div v-for="product in filteredProducts" :key="product.id" @click="handleProductClick(product)"
             class="bg-white rounded-2xl p-0 cursor-pointer border border-gray-200 shadow-sm group relative overflow-hidden flex flex-col transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_15px_30px_-5px_rgba(249,115,22,0.3)] hover:border-orange-300">
             <div v-if="product.type === 'combo'"
@@ -351,7 +352,7 @@ onBeforeRouteLeave((to, from) => {
               HOY
             </div>
 
-            <div class="aspect-[1/3] landscape:aspect-[3/1] lg:landscape:aspect-[1/3] overflow-hidden bg-slate-50 relative flex items-center justify-center w-full border-b border-gray-100">
+            <div class="aspect-[4/3] landscape:aspect-[16/9] lg:landscape:aspect-[4/3] overflow-hidden bg-slate-50 relative flex items-center justify-center w-full border-b border-gray-100">
               <img v-if="product.image" :src="product.image" alt="Foto"
                 class="w-full h-full object-cover group-hover:scale-110 transition duration-500">
               <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-slate-300 group-hover:scale-110 transition duration-500"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
