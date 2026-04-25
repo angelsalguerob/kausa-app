@@ -20,6 +20,8 @@ let realtimeChannel = null
 const currentTime = ref(Date.now())
 let timeInterval = null
 
+
+
 onMounted(() => {
   timeInterval = setInterval(() => {
     currentTime.value = Date.now()
@@ -60,7 +62,12 @@ onMounted(async () => {
   await loadKitchenOrders()
   isInitialLoad.value = false 
 
-  // LA MAGIA: Nos suscribimos a los cambios en tiempo real
+  // 🧹 LIMPIEZA PREVIA: Matamos cualquier canal fantasma antes de crear uno nuevo
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel)
+  }
+
+  // 🪄 LA MAGIA: Preparamos el canal y sus instrucciones
   realtimeChannel = supabase
     .channel('cocina-channel')
     .on(
@@ -71,10 +78,13 @@ onMounted(async () => {
         loadKitchenOrders()
       }
     )
-    .subscribe()
+    
+  // Prendemos el interruptor de escucha
+  realtimeChannel.subscribe()
 })
 
 onUnmounted(() => {
+  // Apagamos la luz al salir de la pantalla de cocina
   if (realtimeChannel) {
     supabase.removeChannel(realtimeChannel)
   }
