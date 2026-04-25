@@ -21,26 +21,56 @@ function generateDays() {
   daysInMonth.value = Array.from({ length: numDays }, (_, i) => i + 1)
 }
 
-function prevMonth() {
+function centerActiveDay() {
+  setTimeout(() => {
+    const activeBtn = document.getElementById(`day-btn-${selectedDay.value}`)
+    if (activeBtn) {
+      // "inline: center" asegura que el botón quede en el medio exacto
+      activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    }
+  }, 100)
+}
+
+async function prevMonth() {
   if (selectedMonth.value === 0) {
     selectedMonth.value = 11
     selectedYear.value--
   } else {
     selectedMonth.value--
   }
-  selectedDay.value = 1
   generateDays()
+  
+  // Guardamos en memoria dónde estábamos antes de cambiar
+  const estabaEnElDia = selectedDay.value 
+  selectedDay.value = 1 // Nos movemos al día 1 del nuevo mes
+  
+  // Si ya estábamos en el día 1, el watcher no se dispara solo, así que lo forzamos:
+  if (estabaEnElDia === 1) {
+    selectedOrders.value = []
+    await fetchOrders()
+    centerActiveDay()
+  }
 }
 
-function nextMonth() {
+async function nextMonth() {
   if (selectedMonth.value === 11) {
     selectedMonth.value = 0
     selectedYear.value++
   } else {
     selectedMonth.value++
   }
-  selectedDay.value = 1
   generateDays()
+
+  // Guardamos en memoria dónde estábamos antes de cambiar
+  const estabaEnElDia = selectedDay.value 
+  selectedDay.value = 1 // Nos movemos al día 1 del nuevo mes
+
+  // Si ya estábamos en el día 1, el watcher no se dispara solo, así que lo forzamos:
+  if (estabaEnElDia === 1) {
+    selectedOrders.value = []
+    await fetchOrders()
+    centerActiveDay()
+  }
 }
 
 // 2. LÓGICA DE BASE DE DATOS Y FINANZAS
@@ -101,6 +131,7 @@ function calcularMetricas() {
 watch(selectedDay, async () => {
   selectedOrders.value = []
   await fetchOrders()
+  centerActiveDay()
 })
 
 async function fetchOrders() {
@@ -195,7 +226,7 @@ function exportToExcel() {
     const turnoExcel = `T-${o.turno || 1}`;
     const destino = (o.table || 'Caja').replace(/;/g, '-');
     
-    // 🚀 FIX: Exportación segura de anulados
+    //  FIX: Exportación segura de anulados
     const isAnulado = ['Cancelado', 'Anulado', 'Rechazado'].includes(o.status);
     const estadoPago = isAnulado ? 'ANULADO' : o.paymentStatus;
     const totalTicket = isAnulado ? '0.00' : Number(o.total).toFixed(2);
@@ -256,10 +287,7 @@ onMounted(() => {
   generateDays()
   fetchOrders()
   clockInterval = setInterval(() => { currentTime.value = new Date() }, 1000)
-  setTimeout(() => {
-    const activeBtn = document.getElementById(`day-btn-${selectedDay.value}`)
-    if (activeBtn) activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
-  }, 100)
+  centerActiveDay() 
 })
 
 onUnmounted(() => {
