@@ -111,10 +111,23 @@ const galleryImages = [
   { url: '/img/platos/incakolamediana.png', label: 'Inca Kola' },  
   { url: '/img/platos/pilsenbotella.png', label: 'Cerveza Pilsen' },
   { url: '/img/platos/incakolamediolitro.jpg', label: 'Inca Kola 1/2 Litro' },
-  { url: '/img/platos/lentejas.jpg', label: 'Lentejas' },
+  { url: '/img/platos/Lentejas.jpg', label: 'Lentejas' },
   { url: '/img/platos/polloalabrasa.jpg', label: 'Pollo a la Brasas' },
   { url: '/img/platos/pollobroaster.jpg', label: 'Pollo Broaster' },
-  { url: '/img/platos/secores.jpg', label: 'Secores' }
+  { url: '/img/platos/secores.jpg', label: 'Secores' },
+ // --- OPCIONES GENÉRICAS / SIN FOTO ---
+  { url: '', label: 'Sin Foto (Icono)' },
+  { url: 'https://placehold.co/400x300/f8fafc/94a3b8?text=Plato+Extra', label: 'Genérico: Plato Extra' },
+  { url: 'https://placehold.co/400x300/f8fafc/94a3b8?text=Bebida', label: 'Genérico: Bebida' },
+  { url: 'https://placehold.co/400x300/f8fafc/94a3b8?text=Postre', label: 'Genérico: Postre' },
+  { url: 'https://placehold.co/400x300/f8fafc/94a3b8?text=Guarnicion', label: 'Genérico: Guarnición' },
+  { url: 'https://placehold.co/400x300/f8fafc/94a3b8?text=Ensalada', label: 'Genérico: Ensalada' },
+  { url: 'https://placehold.co/400x300/f8fafc/94a3b8?text=Especial', label: 'Genérico: Especial' },
+  { url: 'https://placehold.co/400x300/f8fafc/94a3b8?text=Sopa+o+Caldo', label: 'Genérico: Sopa / Caldo' },
+  { url: 'https://placehold.co/400x300/f8fafc/94a3b8?text=Piqueo', label: 'Genérico: Piqueo' },
+  { url: 'https://placehold.co/400x300/f8fafc/94a3b8?text=Menu', label: 'Genérico: Menú' },
+  { url: 'https://placehold.co/400x300/f8fafc/94a3b8?text=Otros', label: 'Genérico: Otros' }
+
 
 
 
@@ -390,22 +403,31 @@ async function confirmDelete() {
               <div class="grid grid-cols-4 md:grid-cols-5 gap-2 overflow-y-auto max-h-32 pr-1 custom-scrollbar">
                 
                 <button 
-                  v-for="(img, idx) in galleryImages" 
-                  :key="idx"
-                  type="button"
-                  @click="form.image = img.url"
-                  class="relative aspect-square rounded-lg overflow-hidden border-2 transition-all duration-200 group bg-gray-100"
-                  :class="form.image === img.url ? 'border-orange-500 shadow-md shadow-orange-500/30 scale-95' : 'border-transparent hover:border-orange-300 hover:shadow-sm'"
-                  :title="img.label"
-                >
-                  <img :src="img.url" class="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" :alt="img.label" onerror="this.src='https://placehold.co/100x100?text=Foto'">
-                  
-                  <div v-if="form.image === img.url" class="absolute inset-0 bg-orange-500/20 flex items-center justify-center">
-                    <div class="bg-orange-500 text-white rounded-full p-0.5 shadow-sm">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" /></svg>
-                    </div>
-                  </div>
-                </button>
+  v-for="(img, idx) in galleryImages" 
+  :key="idx"
+  type="button"
+  @click="form.image = img.url"
+  class="relative aspect-square rounded-lg overflow-hidden border-2 transition-all duration-200 group bg-gray-100 flex items-center justify-center"
+  :class="form.image === img.url ? 'border-orange-500 shadow-md shadow-orange-500/30 scale-95' : 'border-transparent hover:border-orange-300 hover:shadow-sm'"
+  :title="img.label"
+>
+  <img v-if="img.url" :src="img.url" class="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" :alt="img.label" onerror="this.src='https://placehold.co/100x100?text=Foto'">
+  
+  <div v-else class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50 group-hover:bg-slate-200 transition-colors">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mb-1 opacity-60">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+    </svg>
+    <span class="text-[9px] font-black uppercase tracking-widest opacity-70">Sin Foto</span>
+  </div>
+  
+  <div v-if="form.image === img.url" class="absolute inset-0 bg-orange-500/20 flex items-center justify-center">
+    <div class="bg-orange-500 text-white rounded-full p-0.5 shadow-sm">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+        <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+      </svg>
+    </div>
+  </div>
+</button>
 
               </div>
             </div>
