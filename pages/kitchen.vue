@@ -406,12 +406,29 @@ function getTicketColor(description) {
                   {{ item.text }}
                 </div>
                 <ul class="pl-3 md:pl-4 space-y-1.5 md:space-y-2 border-l-2 ml-1" :class="item.isEjecutivo ? 'border-indigo-300' : 'border-orange-300'">
-                  <li v-for="(sub, sIdx) in item.subItems" :key="sIdx" class="text-xs md:text-sm font-bold flex items-center gap-2 text-slate-700">
-                    <span v-if="!sub.isSin" class="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full" :class="item.isEjecutivo ? 'bg-indigo-500' : 'bg-orange-500'"></span>
-                    <span v-else class="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-slate-300"></span>
-                    <span :class="sub.isSin ? 'text-slate-400 italic font-medium' : 'text-slate-800'">{{ sub.text }}</span>
-                    <span v-if="sub.category === 'Bebida' && !sub.isSin" class="ml-auto text-[9px] md:text-[10px] font-black uppercase tracking-widest bg-blue-100 text-blue-700 px-1.5 md:px-2 py-0.5 md:py-1 rounded-md border border-blue-200">Barra</span>
-                  </li>
+                  <li v-for="(sub, sIdx) in item.subItems" :key="sIdx">
+              
+              <!-- 🟨 EL POST-IT (ANCHO FIJO Y SIN ALFILER) -->
+              <div v-if="sub.text.includes('NOTA:')" 
+                   class="relative ml-auto mr-2 md:mr-4 mt-2 mb-3 bg-[#fef08a] w-36 md:w-40 p-3 shadow-[3px_5px_8px_rgba(0,0,0,0.15)] rotate-[-4deg] hover:rotate-[-1deg] transition-transform duration-300 rounded-br-[12px] rounded-tl-sm border border-yellow-300 z-10">
+
+                <!-- Efecto doblez de papel en la esquina -->
+                <div class="absolute bottom-0 right-0 w-0 h-0 border-t-[12px] border-r-[12px] border-t-transparent border-r-[#eab308] opacity-70 rounded-br-[10px]"></div>
+                
+                <p class="text-left text-[11px] md:text-xs font-black text-slate-800 leading-snug break-words w-full">
+                  {{ sub.text.replace('👉 NOTA:', '').trim() }}
+                </p>
+              </div>
+
+              <!-- 🟢 EL INGREDIENTE NORMAL -->
+              <div v-else class="text-xs md:text-sm font-bold flex items-center gap-2 text-slate-700 py-0.5">
+                <span v-if="!sub.isSin" class="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full" :class="item.isEjecutivo ? 'bg-indigo-500' : 'bg-orange-500'"></span>
+                <span v-else class="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-slate-300"></span>
+                <span :class="sub.isSin ? 'text-slate-400 italic font-medium' : 'text-slate-800'">{{ sub.text }}</span>
+                <span v-if="sub.category === 'Bebida' && !sub.isSin" class="ml-auto text-[9px] md:text-[10px] font-black uppercase tracking-widest bg-blue-100 text-blue-700 px-1.5 md:px-2 py-0.5 md:py-1 rounded-md border border-blue-200">Barra</span>
+              </div>
+
+            </li>
                 </ul>
               </div>
               <div v-else class="flex items-center gap-2 md:gap-3 p-2.5 md:p-3 rounded-xl text-xs md:text-sm font-bold border transition-all"

@@ -1,3 +1,4 @@
+//pages/pos.vue
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -175,10 +176,10 @@ async function syncCatalog() {
 
     if (todayMenu) {
       if (todayMenu.ejecutivo) {
-        listaFinal.unshift({ id: 'menu-ejecutivo', name: todayMenu.ejecutivo.name, price: todayMenu.ejecutivo.price, category: 'Menú del Día', image: '', type: 'combo', options: todayMenu.ejecutivo })
+        listaFinal.unshift({ id: 'menu-ejecutivo', name: todayMenu.ejecutivo.name, price: todayMenu.ejecutivo.price, category: 'Menú del Día', image: '/img/platos/ejecutivo.png', type: 'combo', options: todayMenu.ejecutivo })
       }
       if (todayMenu.clasico) {
-        listaFinal.unshift({ id: 'menu-clasico', name: todayMenu.clasico.name, price: todayMenu.clasico.price, category: 'Menú del Día', image: '', type: 'combo', options: todayMenu.clasico })
+        listaFinal.unshift({ id: 'menu-clasico', name: todayMenu.clasico.name, price: todayMenu.clasico.price, category: 'Menú del Día', image: '/img/platos/clasico.png', type: 'combo', options: todayMenu.clasico })
       }
     }
 
@@ -346,16 +347,20 @@ onBeforeRouteLeave((to, from) => {
         <div class="grid grid-cols-2 landscape:grid-cols-4 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4 p-3 lg:p-4">
           <div v-for="product in filteredProducts" :key="product.id" @click="handleProductClick(product)"
             class="bg-white rounded-2xl p-0 cursor-pointer border border-gray-200 shadow-sm group relative overflow-hidden flex flex-col transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_15px_30px_-5px_rgba(249,115,22,0.3)] hover:border-orange-300">
+            
             <div v-if="product.type === 'combo'"
               class="absolute top-2 left-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md z-10 shadow-sm flex items-center gap-1">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>
               HOY
             </div>
 
-            <div class="aspect-[4/3] landscape:aspect-[16/9] lg:landscape:aspect-[4/3] overflow-hidden bg-slate-50 relative flex items-center justify-center w-full border-b border-gray-100">
+            <div class="aspect-square overflow-hidden bg-slate-50 relative flex items-center justify-center w-full border-b border-gray-100">
+              
               <img v-if="product.image" :src="product.image" alt="Foto"
                 class="w-full h-full object-cover group-hover:scale-110 transition duration-500">
+              
               <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-slate-300 group-hover:scale-110 transition duration-500"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+              
               <div class="absolute bottom-0 right-0 bg-slate-800 text-white font-bold px-3 py-1.5 rounded-tl-xl shadow-lg text-sm transition-colors duration-300 group-hover:bg-orange-500">
                 S/. {{ Number(product.price).toFixed(2) }}
               </div>
@@ -434,12 +439,19 @@ onBeforeRouteLeave((to, from) => {
 
           <div v-for="item in store.cart" :key="item.id"
             class="flex justify-between items-center group bg-white p-3 rounded-xl border border-gray-100 shadow-sm hover:border-orange-200 transition">
-            <div class="flex items-center gap-2 sm:gap-3">
+            <div class="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 pr-2">
               <img :src="item.image || 'https://placehold.co/100?text=?'"
                 class="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover bg-gray-100 border border-gray-200 shrink-0">
-              <div class="max-w-[120px] sm:max-w-[160px]">
-                <p class="text-xs sm:text-sm font-bold text-slate-800 line-clamp-2 leading-tight" :title="item.name">{{ item.name }}</p>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs sm:text-sm font-bold text-slate-800 whitespace-normal break-words leading-tight">{{ item.name }}</p>
                 <p class="text-[10px] sm:text-xs text-slate-500 font-mono mt-0.5">S/. {{ item.price }} x {{ item.quantity }}</p>
+                <!--AQUÍ ESTÁ EL NUEVO INPUT PARA LAS NOTAS -->
+                <input 
+                  v-model="item.note" 
+                  type="text" 
+                  placeholder="Nota (ej: parte pierna, sin ají)..." 
+                  class="mt-1.5 w-full text-[10px] sm:text-xs px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-700 focus:outline-none focus:border-orange-300 transition-colors" 
+                />
               </div>
             </div>
 
@@ -535,7 +547,7 @@ onBeforeRouteLeave((to, from) => {
               </span>
             </div>
             
-            <p class="text-xs text-slate-500 mb-4 line-clamp-3 leading-relaxed" :title="order.description">{{ order.description }}</p>
+            <p class="text-xs text-slate-500 mb-4 leading-relaxed" :title="order.description">{{ order.description }}</p>
             
             <div class="flex justify-between items-center pt-3 border-t border-gray-100">
               <span class="font-black text-slate-800">S/. {{ order.total.toFixed(2) }}</span>
@@ -583,7 +595,7 @@ onBeforeRouteLeave((to, from) => {
               <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-md font-black text-[11px] uppercase tracking-widest shadow-sm">{{ order.table }}</span>
             </div>
             
-            <p class="text-xs text-slate-600 mb-4 line-clamp-3 leading-relaxed" :title="order.description">{{ order.description }}</p>
+            <p class="text-xs text-slate-600 mb-4 leading-relaxed" :title="order.description">{{ order.description }}</p>
             
             <button @click="handleMarcarEntregado(order)" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-3 rounded-xl shadow-lg shadow-emerald-500/30 transition active:scale-95 flex items-center justify-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
@@ -782,7 +794,7 @@ onBeforeRouteLeave((to, from) => {
       <h3 class="text-xl font-bold text-slate-800 mb-2">Pedido Para Llevar</h3>
       <p class="text-slate-500 text-sm mb-6">Ingresa el nombre del cliente externo.</p>
       <form @submit.prevent="confirmTakeaway">
-        <input v-model="takeawayCustomer" type="text" placeholder="Ej: Sr. Torres" class="w-full border-2 border-slate-200 rounded-xl px-4 py-3 mb-6 focus:border-slate-800 focus:outline-none text-slate-800 font-medium" required autofocus />
+        <input v-model="takeawayCustomer" type="text" placeholder="Ej: Sr. Juan Pérez" class="w-full border-2 border-slate-200 rounded-xl px-4 py-3 mb-6 focus:border-slate-800 focus:outline-none text-slate-800 font-medium" required autofocus />
         <div class="flex gap-3">
           <button type="button" @click="showTakeawayModal = false" class="flex-1 border border-slate-300 text-slate-600 hover:bg-slate-50 py-3 rounded-xl font-bold transition-colors">Cerrar</button>
           <button type="submit" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-bold transition-colors">Iniciar Pedido</button>

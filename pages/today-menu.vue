@@ -6,23 +6,23 @@ import { ref, computed, onMounted } from 'vue'
 const menus = ref({
   clasico: {
     name: 'Menú Clásico',
-    price: 15.00,
+    price: 10.00,
     theme: 'orange', 
     entradas: [],
     segundos: [],
     bebidas: [],
     postres: [],
-    agotados: [] // 🚀 NUEVA LISTA DE AGOTADOS
+    agotados: []
   },
   ejecutivo: {
     name: 'Menú Ejecutivo',
-    price: 20.00,
+    price: 15.00,
     theme: 'indigo', 
     entradas: [],
     segundos: [],
     bebidas: [],
     postres: [],
-    agotados: [] // 🚀 NUEVA LISTA DE AGOTADOS
+    agotados: [] 
   }
 })
 

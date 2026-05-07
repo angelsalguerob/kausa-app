@@ -18,6 +18,7 @@ export interface Product {
 
 export interface CartItem extends Product {
   quantity: number
+  note?: string
 }
 
 export interface Order {
@@ -336,7 +337,23 @@ export const usePosStore = defineStore('pos', {
       if (this.cart.length === 0) return null
       
       const totalVenta = this.totalPrice
-      const descripcionPedido = this.cart.map(item => `${item.quantity}x ${item.name}`).join(', ')
+      const descripcionPedido = this.cart.map(item => {
+        let texto = `${item.quantity}x ${item.name}`.trim()
+        
+        if (item.note && item.note.trim() !== '') {
+          // Si el mesero usa comas, las cambiamos por " - " para no confundir a la cocina
+          const notaLimpia = item.note.replace(/,/g, ' - ').trim()
+          
+          if (texto.endsWith(']')) {
+            texto = texto.slice(0, -1) + `, 👉 NOTA: ${notaLimpia}]`
+          } else {
+            texto += ` [👉 NOTA: ${notaLimpia}]`
+          }
+        }
+        
+        return texto
+      }).join(', ')
+
       const itemsCopia = [...this.cart] 
       
       this.clearCart()
@@ -380,7 +397,7 @@ export const usePosStore = defineStore('pos', {
     addToCart(product: Product) {
       const existingItem = this.cart.find(item => item.id === product.id)
       if (existingItem) existingItem.quantity++
-      else this.cart.push({ ...product, quantity: 1 })
+      else this.cart.push({ ...product, quantity: 1, note: '' })
     },
     removeFromCart(productId: number | string) {
       const index = this.cart.findIndex(item => item.id === productId)
