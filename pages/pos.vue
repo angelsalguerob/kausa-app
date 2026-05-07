@@ -449,7 +449,7 @@ onBeforeRouteLeave((to, from) => {
                   v-model="item.note" 
                   type="text" 
                   placeholder="Nota (ej: parte pierna, sin ají)..." 
-                  class="mt-1.5 w-full text-[10px] sm:text-xs px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-700 focus:outline-none focus:border-orange-300 transition-colors" 
+                  class="mt-2 w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-1 focus:ring-orange-400 focus:border-orange-400 transition-colors shadow-sm placeholder:text-slate-400" 
                 />
               </div>
             </div>
