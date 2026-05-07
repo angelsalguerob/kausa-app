@@ -349,8 +349,7 @@ onBeforeRouteLeave((to, from) => {
             class="bg-white rounded-2xl p-0 cursor-pointer border border-gray-200 shadow-sm group relative overflow-hidden flex flex-col transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_15px_30px_-5px_rgba(249,115,22,0.3)] hover:border-orange-300">
             
             <div v-if="product.type === 'combo'"
-              class="absolute top-2 left-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md z-10 shadow-sm flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>
+              class="absolute top-7 left-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md z-10 shadow-sm flex items-center gap-1">              
               HOY
             </div>
 
